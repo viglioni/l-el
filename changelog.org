@@ -1,0 +1,15 @@
+#+title: CHANGELOG
+
+All notable changes to this project will be documented in this file.
+
+
+* Unreleased
+** Added
+- Basic structure of the project
+- Automatic currying with =ldef=
+- Pattern matching with =ldef=
+- Type matching with =ldef=
+- Partial application with =l-partial=
+- Placeholder substitution with =__=
+- Custom syntax =with-l=
+- Optional syntax transformation via =l-syntax=

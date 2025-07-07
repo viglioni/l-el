@@ -1,0 +1,28 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs-version: [29.1]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs-version }}
+
+      - name: Install Cask
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/cask/cask/master/go | python
+          echo "$HOME/.cask/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Run tests
+        run: make test
