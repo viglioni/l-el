@@ -4,7 +4,7 @@
 
 ;; Author: Laura Viglioni
 ;; Keywords: lisp, functional, programming, generics, pattern-matching
-;; URL: https://github.com/lauravglioni/l
+;; URL: https://github.com/viglioni/l-el
 
 ;; This file is not part of GNU Emacs.
 
@@ -31,74 +31,13 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'l-generic-type-predicates)
+(require 'l-generic-state)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; l-generic dispatcher ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar l-generic-type-predicates
-  '((:function   . functionp)
-    (:number     . numberp)
-    (:integer    . integerp)
-    (:float      . floatp)
-    (:string     . stringp)
-    (:symbol     . symbolp)
-    (:list       . listp)
-    (:cons       . consp)
-    (:vector     . vectorp)
-    (:hash-table . hash-table-p)
-    (:buffer     . bufferp)
-    (:callable   . (lambda (x) (or (functionp x) (subrp x))))
-    (:sequence   . sequencep)
-    (:atom       . atom)
-    (:null       . null))
-  "Mapping of type keywords to predicate functions.
-
-This alist maps type keywords used in pattern matching to their
-corresponding predicate functions.  These keywords can be used in
-pattern specifications to match arguments based on their type.
-
-Available type keywords:
-- :function   - matches functions (functionp)
-- :number     - matches numbers (numberp)
-- :integer    - matches integers (integerp)
-- :float      - matches floats (floatp)
-- :string     - matches strings (stringp)
-- :symbol     - matches symbols (symbolp)
-- :list       - matches lists (listp)
-- :cons       - matches cons cells (consp)
-- :vector     - matches vectors (vectorp)
-- :hash-table - matches hash tables (hash-table-p)
-- :buffer     - matches buffers (bufferp)
-- :callable   - matches functions or subroutines
-- :sequence   - matches sequences (sequencep)
-- :atom       - matches atoms (atom)
-- :null       - matches nil (null)
-
-Example usage in patterns:
-  (arg :integer)  ; matches when arg is an integer
-  (x :string)     ; matches when x is a string
-  (fn :callable)  ; matches when fn is callable")
-
-(defvar l-generic-registry (make-hash-table :test 'equal)
-  "Registry of generic function methods.
-
-This hash table stores all registered methods for generic functions.
-The structure is: function-name -> list of method specifications.
-
-Each method specification is a list containing:
-- specificity: numeric score indicating how specific the pattern is
-- arity: number of arguments the method accepts
-- pattern-list: list of patterns for matching arguments
-- body: list of expressions forming the method body
-
-Methods are automatically sorted by specificity (highest first) to ensure
-the most specific patterns are matched before more general ones.
-
-Example registry entry:
-  \='my-func -> ((1100 2 ((x :integer) (y :string)) (body...))
-               (200 2 ((x :number) y) (body...))
-               (1 2 (_ _) (body...)))")
 
 (defun l-generic--calculate-specificity (pattern-list)
   "Calculate specificity score for PATTERN-LIST.
@@ -115,30 +54,30 @@ Scoring rules:
 
 PATTERN-LIST is a list of patterns, where each pattern can be:
 - A symbol: regular parameter or wildcard
-- A list: (param type-or-value) for type/value matching
+- A list: \(param type-or-value) for type/value matching
 
 Examples:
-  (l-generic--calculate-specificity \\='(x y))
+  \(l-generic--calculate-specificity \\='(x y))
   ;; => 2 (two regular parameters)
   
-  (l-generic--calculate-specificity \\='((x :integer) (y :string)))
+  \(l-generic--calculate-specificity \\='((x :integer) (y :string)))
   ;; => 200 (two type matches)
   
-  (l-generic--calculate-specificity \\='((x \"hello\") y))
+  \(l-generic--calculate-specificity \\='((x \"hello\") y))
   ;; => 1001 (one value match + one regular parameter)
   
-  (l-generic--calculate-specificity \\='(_ignore x))
+  \(l-generic--calculate-specificity \\='(_ignore x))
   ;; => 2 (wildcard + regular parameter)"
   (cl-reduce
    #'+
    (mapcar (lambda (pattern)
              (cond ((listp pattern)
                     (let ((spec (cadr pattern)))
-                      (cond ((keywordp spec) 100)  ; type match
-                            (t 1000))))            ; value match
-                   ((and (symbolp pattern)         ; wildcard with binding
+                      (cond ((keywordp spec) 100) ; type match
+                            (t 1000))))           ; value match
+                   ((and (symbolp pattern) ; wildcard with binding
                          (string-prefix-p "_" (symbol-name pattern))) 1)
-                   (t 1)))                         ; regular wildcard
+                   (t 1)))              ; regular wildcard
            pattern-list)
    :initial-value 0))
 
@@ -152,27 +91,30 @@ the given PATTERN.
 PATTERN can be:
 - A symbol: always matches (returns t)
 - A symbol starting with \"_\": wildcard, always matches (returns t)
-- A list (param :type): generates type predicate call
-- A list (param value): generates equality check
+- A list \(param `:type'): generates type predicate call
+- A list \(param value): generates equality check
 
 ARG-INDEX is the zero-based index of the argument to test.
 
 Examples:
-  (l-generic--generate-pattern-condition \\='x 0)
+  \(l-generic--generate-pattern-condition \\='x 0)
   ;; => t (always matches)
   
-  (l-generic--generate-pattern-condition \\='(x :integer) 0)
+  \(l-generic--generate-pattern-condition \\='(x :integer) 0)
   ;; => (integerp (nth 0 args))
   
-  (l-generic--generate-pattern-condition \\='(x \"hello\") 1)
+  \(l-generic--generate-pattern-condition \\='(x \"hello\") 1)
   ;; => (equal (nth 1 args) \"hello\")
   
-  (l-generic--generate-pattern-condition \\='_ignore 2)
+  \(l-generic--generate-pattern-condition \\='_ignore 2)
   ;; => t (wildcard always matches)"
   (cond
    ((listp pattern)
     (let ((spec (cadr pattern)))
       (cond
+       ((eq spec :rest)
+        ;; Rest parameters always match (handled specially)
+        t)
        ((keywordp spec)
         ;; Type match: (arg :integer) -> (integerp (nth 0 args))
         (let ((predicate (cdr (assoc spec l-generic-type-predicates))))
@@ -210,25 +152,41 @@ Examples:
   
   (l-generic--generate-bindings \\='(_ignore x))
   ;; => ((_ignore (nth 0 args)) (x (nth 1 args)))"
-  (cl-loop for pattern in pattern-list
-           for i from 0
-           collect (let ((param (if (listp pattern) (car pattern) pattern)))
-                     `(,param (nth ,i args)))))
+  (let ((rest-pos (cl-position-if (lambda (pattern)
+                                   (and (listp pattern)
+                                        (eq (cadr pattern) :rest)))
+                                 pattern-list)))
+    (if rest-pos
+        ;; Handle rest parameter
+        (append
+         ;; Fixed parameters
+         (cl-loop for pattern in (cl-subseq pattern-list 0 rest-pos)
+                  for i from 0
+                  collect (let ((param (if (listp pattern) (car pattern) pattern)))
+                            `(,param (nth ,i args))))
+         ;; Rest parameter
+         (list (let ((rest-pattern (nth rest-pos pattern-list)))
+                 `(,(car rest-pattern) (nthcdr ,rest-pos args)))))
+      ;; No rest parameter - normal binding
+      (cl-loop for pattern in pattern-list
+               for i from 0
+               collect (let ((param (if (listp pattern) (car pattern) pattern)))
+                         `(,param (nth ,i args)))))))
 
-(defun l-generic--generate-method-clause (method-spec)
-  "Generate a cond clause for METHOD-SPEC.
+(cl-defmethod l-generic--generate-method-clause ((method l-generic-method-spec))
+  "Generate a cond clause for METHOD.
 
 Returns a cond clause that tests the method's pattern conditions
 and executes the method body if all conditions match.
 
-METHOD-SPEC is a list containing:
-- specificity: numeric score (not used in generated code)
-- arity: number of arguments (not used in generated code)
-- pattern-list: list of patterns for matching
-- body: list of expressions to execute
+METHOD is a struct `l-generic-method-spec' containing:
+- `arity': number of arguments (not used in generated code)
+- `body': list of expressions to execute
+- `pattern-list': list of patterns for matching
+- `specificity': numeric score (not used in generated code)
 
 The generated clause has the form:
-  ((and condition1 condition2 ...) 
+  \((and condition1 condition2 ...)
    (let ((param1 (nth 0 args)) (param2 (nth 1 args)) ...)
      body...))
 
@@ -236,22 +194,23 @@ Conditions that always return t are removed from the and expression
 for optimization.
 
 Examples:
-  (l-generic--generate-method-clause 
+  \(l-generic--generate-method-clause
     \\='(1100 2 ((x :integer) (y :string)) (+ x (length y))))
   ;; => ((and (integerp (nth 0 args)) (stringp (nth 1 args)))
   ;;     (let ((x (nth 0 args)) (y (nth 1 args)))
   ;;       (+ x (length y))))
   
-  (l-generic--generate-method-clause 
+  (l-generic--generate-method-clause
     \\='(2 2 (x y) (list x y)))
   ;; => (t (let ((x (nth 0 args)) (y (nth 1 args)))
   ;;         (list x y)))"
-  (let* ((pattern-list (nth 2 method-spec))
-         (body (nth 3 method-spec))
-         (conditions (cl-loop for pattern in pattern-list
-                              for i from 0
-                              collect (l-generic--generate-pattern-condition pattern i)))
-         (bindings (l-generic--generate-bindings pattern-list)))
+  (let* ((pattern-list (l--pattern-list method)) ;;method[]
+         (body         (l--body method)) ;; func-body
+         (bindings     (l-generic--generate-bindings pattern-list)) ;; list
+         (conditions   (cl-loop for pattern in pattern-list
+                                for i from 0
+                                collect (l-generic--generate-pattern-condition
+                                         pattern i)))) ;; list of cond patterns
     
     `((and ,@(remove t conditions))  ; Remove 'always true' conditions
       (let ,bindings
@@ -270,8 +229,11 @@ for the generic function.  The generated function:
 5. Raises an error if no pattern matches for the given arity
 
 NAME is the function name symbol.
-METHODS is a list of method specifications, each containing:
-- specificity, arity, pattern-list, body
+METHODS is a list of `l-generic-method-spec' structures, each containing:
+- `arity': number of arguments for dispatch optimization
+- `body': code to execute when matched
+- `pattern-list': the actual patterns to match
+- `specificity': numeric score for pattern matching priority
 
 The generated function handles:
 - Pattern matching with type and value constraints
@@ -280,9 +242,9 @@ The generated function handles:
 
 Examples:
   Given methods for a function calc:
-  - ((1100 2 ((op \='+) x y) (+ x y)))
-  - ((1100 2 ((op \='*) x y) (* x y)))
-  - ((1 2 (_ _ _) (error \"Unknown operation\")))
+  - method with specificity 1100, arity 2, pattern ((op \='+) x y), body (+ x y)
+  - method with specificity 1100, arity 2, pattern ((op \='*) x y), body (* x y)
+  - method with specificity 1, arity 2, pattern (_ _ _), body (error \"Unknown operation\")
   
   The generated function would:
   - Match (calc \='+ 2 3) to first method, return 5
@@ -290,19 +252,33 @@ Examples:
   - Match (calc \='unknown 2 3) to third method, raise error
   - Partially apply (calc \='+) to return a curried function"
   (let* ((methods-by-arity (cl-loop for method in methods
-                                    for arity = (nth 1 method)
-                                    collect (cons arity method)))
-         (max-arity (if methods (apply #'max (mapcar #'car methods-by-arity)) 0))
-         (min-arity (if methods (apply #'min (mapcar #'car methods-by-arity)) 0))
+                                    for arity = (l--arity method)
+                                    collect (cons arity method))) ;; (arity . methods)
+         (max-arity (if methods (apply #'max (mapcar #'car methods-by-arity)) 0)) ;; int
+         (min-arity (if methods (apply #'min (mapcar #'car methods-by-arity)) 0)) ;; int
+         (rest-methods (l-generic--rest-methods methods)) ;; method[]
+         (min-rest-arity (if rest-methods
+                            (apply #'min (mapcar 'l--arity rest-methods))
+                          most-positive-fixnum))
          (arity-groups (cl-loop for arity from min-arity to max-arity
-                                collect (cons arity
-                                              (cl-remove-if-not
-                                               (lambda (method) (= (nth 1 method) arity))
-                                               methods)))))
+                               collect (cons arity
+                                           (cl-remove-if-not
+                                            (lambda (method) (= (l--arity method) arity))
+                                            methods)))))
     
     `(defun ,name (&rest args)
+       ,(l-generic--doc name)
        (let ((arity (length args)))
+
+         ;; Writing all methods inside defun, following the order:
+         ;;(cond
+         ;; Branch 1: Fixed-arity methods
+         ;; Branch 2: Rest methods
+         ;; Branch 3: Currying
+         ;; Branch 4: Error
+         ;; )
          (cond
+          ;; fixed arity methods
           ,@(cl-loop for (arity . arity-methods) in arity-groups
                      when arity-methods
                      collect `((= arity ,arity)
@@ -310,8 +286,39 @@ Examples:
                                 ,@(mapcar #'l-generic--generate-method-clause arity-methods)
                                 (t (error "PatternMatch error in '%s': couldn't match %S"
                                           ',name args)))))
-          ;; Currying case
-          (t (apply #'l-partial #',name args)))))))
+          ;; Handle rest methods for args >= min-rest-arity
+          ,@(when rest-methods
+              `(((>= arity ,min-rest-arity)
+                 (cond
+                  ,@(mapcar #'l-generic--generate-method-clause rest-methods)
+                  (t (error "PatternMatch error in '%s': couldn't match %S"
+                            ',name args))))))
+          ;; Currying case - only for insufficient args
+          ((< arity ,min-arity) (apply #'lpartial #',name args))
+          ;; Too many args - error
+          (t (error "PatternMatch error in '%s': no method for %d arguments.  Available: %S"
+                    ',name arity ',(mapcar #'car methods-by-arity))))))))
+
+(cl-defmethod l-generic--doc ((fname symbol))
+  "Build documentation for FNAME."
+  (format "%s is a generic function.
+Check `ldef' for more documentation.
+
+General documentation: %s"
+          fname
+          (l--get-doc-registry fname)))
+
+
+
+(defun l-generic--rest-methods (methods)
+  "Return methods from METHODS that have a `:rest' param.
+METHODS are a list of `l-generic-method-spec'."
+  (cl-remove-if-not ;; list of methods that contains :rest in the params
+   (lambda (method)
+     (cl-some (lambda (pattern) (and (listp pattern) ;; Short-circuit: remove symbol params
+                                (eq (cadr pattern) :rest)))
+              (l--pattern-list method)))
+   methods))
 
 (defun l-generic--add-method (name arity pattern-list body)
   "Add a method to the registry and regenerate dispatch function.
@@ -342,11 +349,11 @@ BODY is a list of expressions that form the method implementation.
 
 The specificity scoring ensures proper method dispatch order:
 - Value matches: 1000 points each
-- Type matches: 100 points each  
+- Type matches: 100 points each
 - Wildcards and regular parameters: 1 point each
 
 Examples:
-  (l-generic--add-method \\='my-func 2 \\='((x :integer) (y :string)) 
+  (l-generic--add-method \\='my-func 2 \\='((x :integer) (y :string))
                          \\='((+ x (length y))))
   ;; Adds a method that matches integer + string arguments
   
@@ -361,18 +368,46 @@ the new method available for use.
 
 This is an internal function used by the `l-generic' macro and should
 not be called directly by user code."
-  (let* ((specificity (l-generic--calculate-specificity pattern-list))
-         (method-spec (list specificity arity pattern-list body))
-         (current-methods (gethash name l-generic-registry '())))
+  
+  (l-generic--check-rest-syntax! name pattern-list)
+  
+  (let* ((specificity     (l-generic--calculate-specificity pattern-list)) ;; int
+         (method          (l--method arity body pattern-list specificity)) ;; method
+         (current-methods (l--get-from-registry name)) ;; method[]
+         (sorted-methods  (l-generic--add-and-sort method current-methods))) ;; method[]
     
-    ;; Add new method and sort by specificity (descending)
-    (puthash name
-             (sort (cons method-spec current-methods)
-                   (lambda (a b) (> (car a) (car b))))
-             l-generic-registry)
+    ;; new method and sort by specificity (descending)
+    (l--add-to-registry name sorted-methods)
     
     ;; Regenerate dispatch function
-    (eval (l-generic--generate-dispatch-function name (gethash name l-generic-registry)))))
+    (eval (l-generic--generate-dispatch-function name sorted-methods))))
+
+(cl-defmethod l-generic--add-and-sort ((method l-generic-method-spec) (methods list))
+  "Create a sorted list by specificity using METHOD and METHODS.
+Check `l-generic-method-spec'."
+  (sort (cons method methods)
+        (lambda (a b) (> (l--specificity a) (l--specificity b)))))
+
+
+(defun l-generic--check-rest-syntax! (name pattern-list)
+  "Check PATTERN-LIST to see if the `:rest' predicate is used correctly.
+NAME is the name of the method.
+
+Examples:
+\(ldef foo (a (b :number) (c :rest))...) ;; correct
+\(ldef foo (a (b :rest) (c :rest))...)   ;; incorrect
+\(ldef foo (a (b :rest) (c :string))...) ;; incorrect"
+  (let ((rest-positions (cl-loop for pattern in pattern-list
+                                 for i from 0
+                                 when (and (listp pattern) (eq (cadr pattern) :rest))
+                                 collect i)))
+
+    ;; rest position validations
+    (when rest-positions
+      (when (> (length rest-positions) 1)
+        (error "Only one :rest parameter allowed in function '%s'" name))
+      (when (/= (car rest-positions) (1- (length pattern-list)))
+        (error ":rest parameter must be the last parameter in function '%s'" name)))))
 
 (defun l-generic-cleanup (name)
   "Remove generic function NAME and all its methods.
@@ -415,7 +450,7 @@ Interactive usage:
 
 See also: `ldef' for defining generic functions."
   (interactive "SGeneric function name: ")
-  (remhash name l-generic-registry)
+  (remhash name l-generic-method-registry)
   (fmakunbound name))
 
 (defmacro l-generic (name args &rest body)
@@ -446,36 +481,30 @@ registry and regenerates the dispatch function.
 
 Methods are ordered by specificity (most specific patterns first):
 1. Value matches (1000 points each)
-2. Type matches (100 points each)  
+2. Type matches (100 points each)
 3. Wildcards and regular parameters (1 point each)
 
 NAME is the function name to define.
 ARGS is the parameter list, potentially including patterns and &rest.
 BODY is the function body to execute when pattern matches."
-  (let* ((rest-pos (cl-position '&rest args))
-         (fixed-args (if rest-pos (cl-subseq args 0 rest-pos) args))
-         (rest-arg (if rest-pos (nth (1+ rest-pos) args) nil))
-         (arity (length fixed-args))
-         (has-rest rest-pos))
-    
-    (if has-rest
-        ;; Handle &rest arguments - create a wrapper that transforms calls
-        `(progn
-           (defun ,name (&rest all-args)
-             (if (>= (length all-args) ,arity)
-                 (let (,@(cl-loop for arg in fixed-args
-                                  for i from 0
-                                  collect `(,arg (nth ,i all-args)))
-                       (,rest-arg (nthcdr ,arity all-args)))
-                   ,@body)
-               (apply #'l-partial #',name all-args)))
-           ',name)
+      
+      
+      ;; Check for &rest and error
+      (when (cl-position '&rest args)
+        (error "Use (param :rest) instead of &rest for pattern matching functions"))
+      
       ;; Regular fixed-arity function
       `(progn
-         (l-generic--add-method ',name ,arity ',args '(,@body))
-         ',name))))
+         (l-generic--add-method ',name ,(length args) ',args ',body)
+         ',name))
 
-
+(cl-defmethod l-generic-doc ((fname symbol) (docstring string))
+  "Add DOCSTRING to FNAME defined with `ldef'."
+  (l--add-doc-registry fname docstring)
+;;  (l-generic--generate-dispatch-function)
+  (print fname)
+  ;;(print (l--get-from-registry fname))
+  )
 
 (provide 'l-generic)
 ;;; l-generic.el ends here

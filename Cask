@@ -7,4 +7,5 @@
 (depends-on "cl-lib")
 
 (development
- (depends-on "buttercup"))
+ (depends-on "buttercup")
+ (depends-on "org-make-toc"))

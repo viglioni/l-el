@@ -1,12 +1,14 @@
 CASK ?= cask
 EMACS ?= emacs
 
-.PHONY: deps test compile clean release-patch release-minor release-major help
+.PHONY: deps test compile clean install-and-test release-patch release-minor release-major help
 
 deps:
 	$(CASK) install
 
-test: deps
+install-and-test: deps test
+
+test:
 	$(CASK) exec buttercup -L . -L lib -L test test/
 
 compile: deps
@@ -26,11 +28,12 @@ release-major:
 
 help:
 	@echo "Available targets:"
-	@echo "  deps           - Install dependencies"
-	@echo "  test           - Run tests"
-	@echo "  compile        - Compile source files"
-	@echo "  clean          - Clean compiled files"
-	@echo "  release-patch  - Release patch version"
-	@echo "  release-minor  - Release minor version"
-	@echo "  release-major  - Release major version"
-	@echo "  help           - Show this help"
+	@echo "  deps                       - Install dependencies"
+	@echo "  install deps and run tests - Run tests"
+	@echo "  test                       - Run tests"
+	@echo "  compile                    - Compile source files"
+	@echo "  clean                      - Clean compiled files"
+	@echo "  release-patch              - Release patch version"
+	@echo "  release-minor              - Release minor version"
+	@echo "  release-major              - Release major version"
+	@echo "  help                       - Show this help"

@@ -14,32 +14,32 @@
 ;;; code:
 
 (require 'test-helpers)
-(require 'l)
+(require 'l-main)
 
 (context "l.el"
-  (describe "l-partial"
+  (describe "lpartial"
     (test-it "creates a partial function correctly"
-             (let ((partial-fn (l-partial '+ 5)))
+             (let ((partial-fn (lpartial '+ 5)))
                (expect (funcall partial-fn 3) :to-equal 8)))
     
     (test-it "works with multiple initial arguments"
-             (let ((partial-fn (l-partial '* 2 3)))
+             (let ((partial-fn (lpartial '* 2 3)))
                (expect (funcall partial-fn 4) :to-equal 24)))
 
     (test-it "works with no initial arguments"
-             (let ((partial-fn (l-partial '+)))
+             (let ((partial-fn (lpartial '+)))
                (expect (funcall partial-fn 2 3) :to-equal 5)))
 
     (test-it "works with functions that return functions"
-             (let ((partial-fn (l-partial 'l-partial '+ 5)))
+             (let ((partial-fn (lpartial 'lpartial '+ 5)))
                (expect (funcall (funcall partial-fn) 3) :to-equal 8)))
 
     (test-it "works with string functions"
-             (let ((partial-fn (l-partial 'concat "Hello, ")))
+             (let ((partial-fn (lpartial 'concat "Hello, ")))
                (expect (funcall partial-fn "World!") :to-equal "Hello, World!")))
 
     (test-it "works with list functions"
-             (let ((partial-fn (l-partial 'append '(1 2))))
+             (let ((partial-fn (lpartial 'append '(1 2))))
                (expect (funcall partial-fn '(3 4)) :to-equal '(1 2 3 4)))))
 
   (context "ldef"
@@ -63,11 +63,7 @@
 
       (test-it "works with functions that return complex data"
                (ldef test-list-maker (x y z) (list x y z))
-               (expect (test-list-maker 1 2 3) :to-equal '(1 2 3)))
-
-      (test-it "works with functions that use multiple argument destructuring"
-               (ldef test-variadic (x y &rest rest) (append (list x y) rest))
-               (expect (test-variadic 1 2 3 4 5) :to-equal '(1 2 3 4 5)))
+               (expect (test-list-maker 1 2 3) :to-equal '(1 2 3)))      
 
       (test-it "works with functions that modify arguments"
                (ldef test-modifier (x y) (cons (1+ x) (1+ y)))
@@ -264,7 +260,35 @@
         (test-it "falls through to general case"
                  (expect (mixed-matcher "hello" "world") :to-equal "fallback")
                  (expect (mixed-matcher '(1 2) 3) :to-equal "fallback"))))
-    )
+
+    (describe "do not allow more arguments than it is defined"
+      (before-all
+        (ldef one-or-two-params ((n :number)) n)
+        (ldef one-or-two-params ((n :number) (s :string))
+              (format "%s. %s" n s)))
+      
+      (test-it "works with one param"
+        (expect (one-or-two-params 10) :to-equal 10))
+      
+      (test-it "works with two params"
+        (expect (one-or-two-params 10 "pelé") :to-equal "10. pelé"))
+      
+      (test-it "raises for other cases"
+        (expect (one-or-two-params "maradona") :to-throw)
+        (expect (one-or-two-params 10 10) :to-throw)
+        (expect (one-or-two-params "maradona" "rooney") :to-throw)
+        (expect (one-or-two-params 10 "garrincha" "zico") :to-throw))
+      (test-it "do not allow &rest operator"
+        (expect (macroexpand '(ldef foo (&rest args) nil)) :to-throw)))
+
+    (describe ":rest operator"
+      (before-all (ldef rest-fun ((a :number) (b :number) (c :rest)) c))
+      (test-it "rest operator works"
+        (expect (rest-fun 1 2 3) :to-equal '(3))
+        (expect (funcall (rest-fun 1 2) 3 4) :to-equal '(3 4)))
+
+      (test-it ":rest operator can only exist in the final argument"      
+        (expect (ldef rest-fail ((c: number) (a :rest) (b :number)) nil) :to-throw))))
 
   (context "with-l"
 
@@ -414,13 +438,13 @@
       (test-it "works with cl-reduce"
         (expect (cl-reduce (l acc x -> (+ acc x)) '(1 2 3 4) :initial-value 0) :to-equal 10)))
 
-    (describe "integration with l-partial"
-      (test-it "works with l-partial"
-        (let ((partial-fn (l-partial (l x y z -> (+ x y z)) 1)))
+    (describe "integration with lpartial"
+      (test-it "works with lpartial"
+        (let ((partial-fn (lpartial (l x y z -> (+ x y z)) 1)))
           (expect (funcall partial-fn 2 3) :to-equal 6)))
       
       (test-it "works with chained partial applications"
-        (let ((partial-fn (l-partial (l x y z -> (* x y z)) 2 3)))
+        (let ((partial-fn (lpartial (l x y z -> (* x y z)) 2 3)))
           (expect (funcall partial-fn 4) :to-equal 24))))
 
     (describe "integration with with-l"

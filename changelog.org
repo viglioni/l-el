@@ -3,8 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 * Unreleased
-
-
+** Added
+- =:rest= parameter to =ldef=
+- =lcomp= for function composition
+- =l-doc= for general =ldef= documentation
+** Changed
+- Refactored library moving contents to =l-main.el=
+- Renamed =l-partial= to =lpartial= for consistency
+** Fixed
+- =ldef= allowing more parameters than its definitions
+- =ldef= allowing =&rest=
+- =l-syntax= advices
 * 0.1.0 - 2025-07-07
 ** Added
 - Basic structure of the project
