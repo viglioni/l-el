@@ -25,10 +25,12 @@
      (t (error "Unknown increment type: %s" increment-type)))
     
     ;; Confirm versions
-    (unless (yes-or-no-p (format "Confirm current version: %s?" current-version))
+    (unless (y-or-n-p (format "Confirm current version: %s?" current-version))
+      (shell-command "git stash")
       (user-error "Release aborted"))
     
-    (unless (yes-or-no-p (format "Confirm new version: %s?" new-version))
+    (unless (y-or-n-p (format "Confirm new version: %s?" new-version))
+      (shell-command "git stash")
       (user-error "Release aborted"))
     
     (message "Preparing release: %s -> %s" current-version new-version)
@@ -42,6 +44,17 @@
           (write-region (point-min) (point-max) file)
           (message "Updated %s" file))))
     
+    ;; Update version in l.el file
+    (let ((l-file "l.el"))
+      (when (file-exists-p l-file)
+        (with-temp-buffer
+          (insert-file-contents l-file)
+          (goto-char (point-min))
+          (when (re-search-forward ";; Version: [0-9]+\\.[0-9]+\\.[0-9]+" nil t)
+            (replace-match (format ";; Version: %s" new-version))
+            (write-region (point-min) (point-max) l-file)
+            (message "Updated %s" l-file)))))
+    
     ;; Update tag in readme.org
     (let ((readme-file "readme.org"))
       (when (file-exists-p readme-file)
@@ -52,7 +65,6 @@
             (replace-match (format ":tag \"v%s\"" new-version))
             (write-region (point-min) (point-max) readme-file)
             (message "Updated %s" readme-file)))))
-
 
     ;; Update version in Cask file
     (let ((cask-file "Cask"))
@@ -65,7 +77,6 @@
             (write-region (point-min) (point-max) cask-file)
             (message "Updated %s" cask-file)))))
 
-    
     ;; Update changelog
     (let ((changelog-file (if (file-exists-p "CHANGELOG.org") 
                               "CHANGELOG.org"
@@ -96,24 +107,32 @@
         (message "Updated %s" changelog-file)))
     
     ;; Commit the changes
-    (when (yes-or-no-p "Commit changelog and version updates?")
-      (shell-command (format "git add -A && git commit -m \"Release version %s\"" new-version))
-      (message "Changes committed"))
+    (unless (y-or-n-p "Commit changelog and version updates?")
+      (shell-command "git stash")
+      (user-error "Release aborted"))
+    (shell-command (format "git add -A && git commit -m \"Release version %s\"" new-version))
+    (message "Changes committed")
     
     ;; Create git tag
-    (when (yes-or-no-p (format "Create tag %s?" new-version))
-      (shell-command (format "git tag -a %s -m \"Release %s\"" new-version new-version))
-      (message "Tagged version %s" new-version))
+    (unless (y-or-n-p (format "Create tag %s?" new-version))
+      (shell-command "git stash")
+      (user-error "Release aborted"))
+    (shell-command (format "git tag -a %s -m \"Release %s\"" new-version new-version))
+    (message "Tagged version %s" new-version)
     
     ;; Push changes to remote
-    (when (yes-or-no-p "Push changes to remote?")
-      (shell-command "git push")
-      (message "Changes pushed to remote"))
+    (unless (y-or-n-p "Push changes to remote?")
+      (shell-command "git stash")
+      (user-error "Release aborted"))
+    (shell-command "git push")
+    (message "Changes pushed to remote")
     
     ;; Push tag to remote
-    (when (yes-or-no-p (format "Push tag %s to remote?" new-version))
-      (shell-command (format "git push origin %s" new-version))
-      (message "Tag %s pushed to remote" new-version))
+    (unless (y-or-n-p (format "Push tag %s to remote?" new-version))
+      (shell-command "git stash")
+      (user-error "Release aborted"))
+    (shell-command (format "git push origin %s" new-version))
+    (message "Tag %s pushed to remote" new-version)
     
     (message "Release %s completed!" new-version)))
 
