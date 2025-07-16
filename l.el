@@ -80,7 +80,10 @@
 (add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
 (add-to-list 'load-path (expand-file-name "lib" (file-name-directory (or load-file-name buffer-file-name))))
 
+;; internal library paths
+(require 'l-load-path)
 
+;; core
 (require 'l-main)
 (require 'l-syntax)
 

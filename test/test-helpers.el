@@ -12,6 +12,8 @@
 
 ;;; code:
 
+(require 'l-load-path)
+
 ;;;###autoload
 (defun load-test-file (file-name)
   "Search for FILE-NAME and load it."
