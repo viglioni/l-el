@@ -57,6 +57,8 @@
 
 ;;; Code:
 
+(require 'l-main)
+
 (defvar l-syntax nil
   "Controls whether l syntax transformations are applied during evaluation.
 
@@ -149,7 +151,8 @@ ORIG-FUN is `eval-last-sexp'."
   (if (l--should-use-l-syntax-p)
       ;; l-syntax is enabled - evaluate the wrapped sexp directly
       (let* ((sexp (elisp--preceding-sexp))
-             (wrapped-sexp `(with-l ,sexp))
+             (processed-sexp (l--process-sexp-for-doc sexp))
+             (wrapped-sexp `(with-l ,processed-sexp))
              (result (eval wrapped-sexp)))
         ;; Handle output formatting like the original function
         (let ((eval-last-sexp-arg-internal (car args)))
@@ -160,6 +163,16 @@ ORIG-FUN is `eval-last-sexp'."
     ;; l-syntax not enabled - use original function
     (apply orig-fun args)))
 
+(defun l--process-sexp-for-doc (sexp)
+  "Process SEXP to group @doc expressions if it's a progn.
+Returns the processed sexp with @doc expressions grouped."
+  (if (and (consp sexp) (eq (car sexp) 'progn))
+      ;; It's a progn - group @doc expressions in the body
+      (let ((grouped-body (l--group-doc-expressions (cdr sexp))))
+        `(progn ,@grouped-body))
+    ;; Not a progn - return as-is
+    sexp))
+
 (defun l--eval-region-advice (orig-fun start end &rest args)
   "Advice for `eval-region' to handle l-syntax.
 ORIG-FUN is the original load function.
@@ -167,8 +180,9 @@ START and END are the region start and end point.
 ARGS are additional arguments passed to load."
   (if (l--should-use-l-syntax-p)
       ;; l-syntax is enabled - wrap entire region in with-l
-      (let ((region-content (buffer-substring-no-properties start end)))
-        (eval `(with-l ,(read region-content))))
+      (let* ((region-content (buffer-substring-no-properties start end))
+             (grouped-content (l--group-doc-in-content region-content)))
+        (eval `(with-l ,(read grouped-content))))
     ;; l-syntax not enabled - use original function
     (apply orig-fun start end args)))
 
@@ -177,9 +191,10 @@ ARGS are additional arguments passed to load."
 ORIG-FUN is the original load function.
 ARGS are additional arguments passed to load."
   (if (l--should-use-l-syntax-p)
-      ;; l-syntax is enabled - wrap entire region in with-l
-      (let ((region-content (buffer-substring-no-properties (point-min) (point-max))))
-        (eval `(with-l ,(read region-content))))
+      ;; l-syntax is enabled - wrap entire buffer in with-l
+      (let* ((buffer-content (buffer-substring-no-properties (point-min) (point-max)))
+             (grouped-content (l--group-doc-in-content buffer-content)))
+        (eval (read (format "(with-l %s)" grouped-content))))
     ;; l-syntax not enabled - use original function
     (apply orig-fun args)))
 
@@ -194,12 +209,53 @@ ARGS are additional arguments passed to load."
         (insert-file-contents filename)
         (if (l--should-use-l-syntax-p)
             ;; l-syntax enabled - wrap and evaluate
-            (let ((file-content (buffer-string)))
-              (eval (read (format "(with-l %s)" file-content))))
+            (let* ((file-content (buffer-string))
+                   (grouped-content (l--group-doc-in-content file-content)))
+              (eval (read (format "(with-l %s)" grouped-content))))
           ;; l-syntax not enabled - use original function
           (apply orig-fun filename args)))
     ;; Not an .el file or doesn't exist - use original function
     (apply orig-fun filename args)))
+
+(defun l--group-doc-in-content (content)
+  "Group @doc expressions in CONTENT string.
+Transforms: @doc \"...\" (ldef ...) -> (@doc \"...\" (ldef ...))
+Returns the modified content as a string."
+  (with-temp-buffer
+    (insert content)
+    (goto-char (point-min))
+    (let ((forms '()))
+      ;; Read all forms
+      (while (not (eobp))
+        (condition-case nil
+            (push (read (current-buffer)) forms)
+          (end-of-file nil)))
+      
+      ;; Group @doc expressions
+      (let ((grouped-forms (l--group-doc-expressions (nreverse forms))))
+        ;; Convert back to string
+        (mapconcat (lambda (form) (format "%S" form)) grouped-forms "\n")))))
+
+
+(defun l--check-for-doc-before-sexp (sexp)
+  "Check if there's a @doc before the current sexp and group them.
+Returns the grouped expression or the original SEXP."
+  (save-excursion
+    (backward-sexp 1) ; Move to start of current sexp
+    (skip-chars-backward " \t\n")
+    (backward-sexp 1) ; Try to get previous sexp
+    (let ((prev-sexp (ignore-errors (elisp--preceding-sexp))))
+      (if (and prev-sexp (stringp prev-sexp))
+          ;; Found a string, check if there's @doc before it
+          (progn
+            (backward-sexp 1)
+            (skip-chars-backward " \t\n")
+            (backward-sexp 1)
+            (let ((doc-symbol (ignore-errors (elisp--preceding-sexp))))
+              (if (eq doc-symbol '@doc)
+                  `(@doc ,prev-sexp ,sexp)
+                sexp)))
+        sexp))))
 
 (provide 'l-syntax)
 ;;; l-syntax.el ends here

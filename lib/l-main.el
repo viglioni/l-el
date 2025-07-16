@@ -150,7 +150,8 @@ Examples:
 
 BODY contains the expressions to transform.
 Regular function calls and other expressions are left unchanged."
-  `(progn ,@(mapcar #'l--transform-curry-calls body)))
+  (let ((grouped-body (l--group-doc-expressions body)))
+    `(progn ,@(mapcar #'l--transform-curry-calls grouped-body))))
 
 (defmacro l (&rest expr)
   "Lambda macro for creating functions with arrow syntax.
@@ -235,6 +236,12 @@ expressions are handled correctly."
           `(lambda (x) ,(substitute-__ block 'x)))
       block)))
 
+(defmacro @doc (docstring &rest ldef-exprs)
+  "Add DOCSTRING to function-name defined in LDEF-EXPRS defined with `ldef'."
+  `(progn (l-generic-doc ',(cadar ldef-exprs) ,docstring)
+          ,@ldef-exprs))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Private functions ;;
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -266,6 +273,31 @@ converted to funcall forms."
     (mapcar #'l--transform-curry-calls expr))
    (t expr)))
 
+(defun l--group-doc-expressions (body)
+  "Group @doc expressions with their following expression.
+Transforms: @doc \"...\" (ldef ...) -> (@doc \"...\" (ldef ...))
+BODY is a list of expressions."
+  (let ((result '())
+        (remaining body))
+    
+    (while remaining
+      (let ((current (car remaining)))
+        (if (eq current '@doc)
+            ;; Found @doc - group with next two expressions (docstring + ldef)
+            (if (>= (length remaining) 3)
+                (progn
+                  (push `(@doc ,(cadr remaining) ,(caddr remaining)) result)
+                  (setq remaining (cdddr remaining)))
+              ;; Not enough expressions after @doc - treat as regular expression
+              (progn
+                (push current result)
+                (setq remaining (cdr remaining))))
+          ;; Regular expression
+          (progn
+            (push current result)
+            (setq remaining (cdr remaining))))))
+    
+    (nreverse result)))
 
 (provide 'l-main)
 ;;; l-main.el ends here
