@@ -10,9 +10,9 @@
 :CONTENTS:
 - [[#table-of-contents][Table of Contents]]
 - [[#overview][Overview]]
-- [[#features][Features]]
-- [[#usage][Usage]]
-- [[#configuration][Configuration]]
+  - [[#features][Features]]
+  - [[#usage][Usage]]
+  - [[#configuration][Configuration]]
 - [[#api-reference][API Reference]]
   - [[#variables][Variables]]
     - [[#l-syntax][l-syntax]]
@@ -38,7 +38,33 @@
 
 =l.el= provides a modern functional programming approach to writing Emacs Lisp, drawing inspiration from Common Lisp, Haskell and Elixir. This library introduces currying, partial application, pattern matching, and placeholder substitution utilities that make Emacs Lisp more expressive and closer to modern functional programming paradigms.
 
-* Features
+#+begin_src elisp :exports both :results output 
+  ;; -*- l-syntax: t; -*-
+
+  @doc "A function that returns the nth Fibonacci number.
+  This function grows exponentially.
+  "
+  (ldef fib ((n 0)) 0)
+  (ldef fib ((n 1)) 1)
+  (ldef fib ((n :integer))
+        (+ (fib (- n 1))
+           (fib (- n 2))))
+
+
+
+  @doc "This function calculates delta in a quadratic function"
+
+  (ldef delta ((a :number) (b :number) (c :number))
+        (- (* b b) (* 4 a c)))
+
+  ;; it can be called in multiple ways:
+
+  ((((delta) 1 ) 2) 3) ;; as it has auto currying but no need to use `funcall'
+  (delta 1 2 3)        ;; evaluates the same result
+#+end_src
+
+
+** Features
 
 - Automatic currying with =ldef=
 - Pattern matching with =ldef=
@@ -47,17 +73,23 @@
 - Placeholder substitution with =__=
 - Custom syntax with =with-l=
 - Optional syntax transformation via =l-syntax=
+- Elixir style documentation with =@doc=
+- Emacs lisp major mode inspired =l-mode=, extending the syntax highlight
 
 Check [[./changelog.org][changelog]] for more information.
 
-* Usage
+** Usage
 
 This package is not on melpa/elpa (yet?), but you can install via =use-package/straight=:
 
 #+begin_src elisp
   (use-package l
     :straight (:type git :host github :repo "viglioni/l-el" :tag "v0.2.0")
-    :config
+    :mode ("\\.el\\'" . l-mode) ;; extended syntax highlight
+    :custom
+    (l-syntax t) ;; optional: globaly enable l-syntax. Advices needed.
+    :init
+    (l-syntax-advices) ;; to be able to run without using `with-l'
     ;; ...
     )
 #+end_src
@@ -69,7 +101,7 @@ Or clone this repo, add =l.el= to your load path and require it:
 (require 'l)
 #+end_src
 
-* Configuration
+** Configuration
 
 The =l-syntax= variable controls syntax transformation behavior. It can be set globally:
 

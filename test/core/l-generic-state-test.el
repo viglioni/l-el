@@ -37,8 +37,7 @@
 
 ;;; code:
 
-(require 'test-helpers)
-(require 'l-generic-state)
+(require 'l-test-helpers)
 
 
 (context "l-generic-state.el"

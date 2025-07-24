@@ -58,6 +58,12 @@
 (require 'cl-lib)
 (require 'l-generic)
 
+(defgroup l nil
+  "Modern functional programming utilities for Emacs Lisp."
+  :group 'lisp
+  :prefix "l-"
+  :link '(url-link "https://github.com/viglioni/l-el"))
+
 ;;;;;;;;;
 ;; API ;;
 ;;;;;;;;;

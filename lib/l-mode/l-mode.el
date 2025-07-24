@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Laura Viglioni
 
 ;; Author: Laura Viglioni
-;; Version: 0.2.0
+;; Version: NEXT
 ;; Package-Requires: ((emacs "29"))
 ;; Keywords: lisp, functional, programming, utilities, mode
 ;; URL: https://github.com/viglioni/l-el
@@ -41,22 +41,81 @@
 
 ;;; Code:
 
-(defvar l-additional-keywords
-  '(("\\(@doc\\)\\s-+\\(\"\\(?:.\\|\n\\)*?\"\\)"
+(defconst l-sexp-rx
+  (rx "("
+      (* (or
+          ;; Regular characters (not parens, quotes, backslashes)
+          (not (any "()\"\\"))
+          ;; Escaped characters
+          (seq "\\" anything)
+          ;; Quoted strings with proper escaping
+          (seq "\""
+               (* (or (not (any "\"\\"))
+                      (seq "\\" anything)))
+               "\"")
+          ;; One level of nested parentheses
+          (seq "("
+               (* (or (not (any "()\"\\"))
+                      (seq "\\" anything)
+                      (seq "\"" (* (or (not (any "\"\\")) (seq "\\" anything))) "\"")))
+               ")")))
+      ")"))
+
+
+(defun l-mode-point-in-docstring-p ()
+  "Return non-nil if point is inside a docstring."
+  (let ((face (get-text-property (point) 'face)))
+    (or (eq face 'font-lock-doc-face)
+        (and (listp face) (memq 'font-lock-doc-face face)))))
+
+
+(defvar l-mode-additional-keywords
+  `(;; @doc keyword highlighting
+    ("\\(@doc\\)\\s-+\\(\"\\(?:[^\"\\]\\|\\\\.\\)*\"\\)"
      (1 font-lock-constant-face)
-     (2 font-lock-doc-face t))
-    ;; Backticks specifically within @doc strings
-    ("\\(@doc\\)\\s-+\\(\"\\(?:[^\"\\]\\|\\\\.\\|\n\\)*?`\\([^'`]+\\)'\\(?:[^\"\\]\\|\\\\.\\|\n\\)*?\"\\)"
-     (3 font-lock-constant-face t)))
-  "Additional font lock keywords for l-mode.")
+     (2 font-lock-doc-face))
+
+    ;; Strings within ANY docstring (escaped quotes)
+    ("\\(\\\\\"\\(?:[^\\\"\\\\]\\|\\\\.\\)*\\\\\"\\)"
+     (1 (when (save-match-data (l-mode-point-in-docstring-p))
+          font-lock-string-face)
+        prepend))
+    
+    ;; S-expressions within ANY docstring (including @doc)
+    (,l-sexp-rx
+     (0 (when (save-match-data (l-mode-point-in-docstring-p))
+          font-lock-variable-name-face)
+        prepend))
+
+    ;; Backslashes within ANY docstring
+    ("\\(\\\\\\)"
+     (1 (when (save-match-data (l-mode-point-in-docstring-p))
+          'shadow)
+        prepend)))
+  "Additional font lock keywords for `l-mode'.")
+
+(defun l-font-lock-syntactic-face-function (state)
+  "Determine syntactic face for position based on STATE.
+This function handles @doc strings specially, treating them as docstrings."
+  (if (nth 3 state)  ; we're in a string
+      (save-excursion
+        (goto-char (nth 8 state))  ; go to string start
+        (if (looking-back "@doc\\s-+" (line-beginning-position))
+            font-lock-doc-face
+          font-lock-string-face))
+    (lisp-font-lock-syntactic-face-function state)))
 
 (define-derived-mode l-mode emacs-lisp-mode "L"
-    "Major mode for l.el syntax with enhanced highlighting."
-    :group 'l
-    ;; Add keywords with 'prepend to give them higher priority
-    (font-lock-add-keywords nil l-additional-keywords 'prepend)
-    (font-lock-mode 1)
-    (font-lock-ensure))
+  "Major mode for l.el syntax with enhanced highlighting."
+  ;; Add our keywords
+  (font-lock-add-keywords nil l-mode-additional-keywords 'prepend)
+  
+  ;; Use our custom syntactic face function
+  (setq-local font-lock-syntactic-face-function #'l-font-lock-syntactic-face-function)
+  
+  ;; Ensure font-lock is active
+  (font-lock-mode 1)
+  (font-lock-ensure))
 
 (provide 'l-mode)
 

@@ -13,8 +13,7 @@
 
 ;;; code:
 
-(require 'test-helpers)
-(require 'l-main)
+(require 'l-test-helpers)
 
 (context "l.el"
   (describe "lpartial"

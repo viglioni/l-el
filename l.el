@@ -87,5 +87,8 @@
 (require 'l-main)
 (require 'l-syntax)
 
+;; l-mode
+(require 'l-mode)
+
 (provide 'l)
 ;;; l.el ends here

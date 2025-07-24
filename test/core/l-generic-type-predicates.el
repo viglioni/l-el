@@ -1,6 +1,4 @@
-
-
-(require 'l-generic-type-predicates)
+(require 'l-test-helpers)
 
 (context "l-generic-type-predicates"
   (describe ":function"

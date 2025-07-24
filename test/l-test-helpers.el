@@ -6,13 +6,13 @@
 ;;
 ;; since: NEXT
 ;;
-;; test-helpers.el:
+;; l-test-helpers.el:
 ;; Set up buttercup and some macro helpers.
 ;;
 
 ;;; code:
 
-(require 'l-load-path)
+(require 'l)
 
 ;;;###autoload
 (defun load-test-file (file-name)
@@ -38,6 +38,6 @@ BODY is the test suit block."
   `(it (concat "it " ,description)
        ,@body))
 
-(provide 'test-helpers)
+(provide 'l-test-helpers)
 
-;;; test-helpers.el ends here.
+;;; l-test-helpers.el ends here.

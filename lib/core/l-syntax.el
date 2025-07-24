@@ -59,7 +59,7 @@
 
 (require 'l-main)
 
-(defvar l-syntax nil
+(defcustom l-syntax nil
   "Controls whether l syntax transformations are applied during evaluation.
 
 When set to t globally, l syntax transformations will be applied
@@ -84,7 +84,10 @@ functions are installed via `l-syntax-advices'.
 
 Setting this to t globally allows you to use l syntax everywhere
 without adding file-local variable declarations to each file, while
-setting it to nil provides more granular control on a per-file basis.")
+setting it to nil provides more granular control on a per-file basis."
+  :type 'boolean
+  :group 'l
+  :safe #'booleanp)
 
 (defun l-syntax-advices ()
   "Add advice to evaluation functions for l syntax support.
