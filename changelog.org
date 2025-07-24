@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+** Added
+- =l-mode=
+  
 * 0.2.0 - 2025-07-15
 ** Added
 - =:rest= parameter to =ldef=

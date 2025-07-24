@@ -61,6 +61,24 @@
                ")")))
       ")"))
 
+(defun l-highlight-sexps-in-docstring (limit)
+  "Font-lock matcher for s-expressions within docstrings up to LIMIT."
+  (let (match-found)
+    (while (and (not match-found) 
+                (re-search-forward "(" limit t))
+      (when (l-mode-point-in-docstring-p)
+        (let ((start (match-beginning 0)))
+          (condition-case nil
+              (progn
+                (goto-char start)
+                (forward-sexp 1)
+                (set-match-data (list start (point)))
+                (setq match-found t))
+            (error 
+             ;; If forward-sexp fails, advance past the problematic "(" 
+             ;; to avoid infinite loop
+             (goto-char (1+ start)))))))
+    match-found))
 
 (defun l-mode-point-in-docstring-p ()
   "Return non-nil if point is inside a docstring."
@@ -81,8 +99,7 @@
           font-lock-string-face)
         prepend))
     
-    ;; S-expressions within ANY docstring (including @doc)
-    (,l-sexp-rx
+    (l-highlight-sexps-in-docstring
      (0 (when (save-match-data (l-mode-point-in-docstring-p))
           font-lock-variable-name-face)
         prepend))
@@ -116,6 +133,8 @@ This function handles @doc strings specially, treating them as docstrings."
   ;; Ensure font-lock is active
   (font-lock-mode 1)
   (font-lock-ensure))
+
+
 
 (provide 'l-mode)
 

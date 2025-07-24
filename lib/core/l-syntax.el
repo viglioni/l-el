@@ -58,7 +58,7 @@
 ;;; Code:
 
 (require 'l-main)
-
+(require 'l-mode)
 (defcustom l-syntax nil
   "Controls whether l syntax transformations are applied during evaluation.
 
@@ -92,24 +92,28 @@ setting it to nil provides more granular control on a per-file basis."
 (defun l-syntax-advices ()
   "Add advice to evaluation functions for l syntax support.
 This function adds around advice to `eval-last-sexp', `eval-region',
-`eval-buffer', `load-file', and `load' to enable l syntax processing."
+`eval-buffer', `load-file', and `load' to enable l syntax processing.
+
+Enable `l-mode' when `l-syntax' is t."
   (interactive)
-  (advice-add 'eval-last-sexp :around #'l--eval-last-sexp-advice)
-  (advice-add 'eval-region    :around #'l--eval-region-advice)
-  (advice-add 'eval-buffer    :around #'l--eval-buffer-advice)
-  (advice-add 'load-file      :around #'l--load-file-advice)
-  (advice-add 'load           :around #'l--load-file-advice))
+  (add-hook   'after-change-major-mode-hook #'l-mode--auto-enable)
+  (advice-add 'eval-last-sexp      :around #'l--eval-last-sexp-advice)
+  (advice-add 'eval-region         :around #'l--eval-region-advice)
+  (advice-add 'eval-buffer         :around #'l--eval-buffer-advice)
+  (advice-add 'load-file           :around #'l--load-file-advice)
+  (advice-add 'load                :around #'l--load-file-advice))
 
 (defun l-syntax-remove-advices ()
   "Remove advice to evaluation functions for l syntax support.
 This function adds around advice to `eval-last-sexp', `eval-region',
 `eval-buffer', `load-file', and `load' to enable l syntax processing."
   (interactive)
-  (advice-remove 'eval-last-sexp #'l--eval-last-sexp-advice)
-  (advice-remove 'eval-region    #'l--eval-region-advice)
-  (advice-remove 'eval-buffer    #'l--eval-buffer-advice)
-  (advice-remove 'load-file      #'l--load-file-advice)
-  (advice-remove 'load           #'l--load-file-advice))
+  (remove-hook   'after-change-major-mode-hook #'l-mode--auto-enable)
+  (advice-remove 'eval-last-sexp               #'l--eval-last-sexp-advice)
+  (advice-remove 'eval-region                  #'l--eval-region-advice)
+  (advice-remove 'eval-buffer                  #'l--eval-buffer-advice)
+  (advice-remove 'load-file                    #'l--load-file-advice)
+  (advice-remove 'load                         #'l--load-file-advice))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -259,6 +263,18 @@ Returns the grouped expression or the original SEXP."
                   `(@doc ,prev-sexp ,sexp)
                 sexp)))
         sexp))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Use l-mode with l-syntax ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun l-mode--auto-enable ()
+  "Hook for `emacs-lisp-mode' to auto-enable `l-mode' when `l-syntax' is active."
+  (when (and (eq major-mode 'emacs-lisp-mode)
+             (not (eq major-mode 'l-mode))
+             (l--should-use-l-syntax-p))
+    (l-mode)))
+
 
 (provide 'l-syntax)
 ;;; l-syntax.el ends here
