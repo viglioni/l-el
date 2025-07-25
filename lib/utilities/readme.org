@@ -1,6 +1,6 @@
 #+title: l.el utilities
 
-In this part of the library, we define functions/macros that use =l.el= core features, such as =ldef=.
+In this part of the library, we define functions/macros that use =l.el= core features, such as =ldef= and =l-syntax=.
 
 In this part of the code we have:
 

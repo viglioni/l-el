@@ -25,6 +25,10 @@
     - [[#l-rest-expr][l (&rest expr)]]
     - [[#__-block-optional-arg][__ (block &optional arg)]]
     - [[#l-generic-cleanup-name][l-generic-cleanup (name)]]
+    - [[#l-mode][l-mode]]
+    - [[#l-require-feature-optional-filename-noerror][l-require (feature &optional filename noerror)]]
+  - [[#utilities][Utilities]]
+    - [[#lcomp-rest-functions][lcomp (&rest functions)]]
 - [[#type-system][Type System]]
 - [[#license][License]]
 - [[#author][Author]]
@@ -36,66 +40,74 @@
 
 * Overview
 
-=l.el= provides a modern functional programming approach to writing Emacs Lisp, drawing inspiration from Common Lisp, Haskell and Elixir. This library introduces currying, partial application, pattern matching, and placeholder substitution utilities that make Emacs Lisp more expressive and closer to modern functional programming paradigms.
+=l.el= provides a comprehensive modern functional programming approach to writing Emacs Lisp, drawing inspiration from Common Lisp, Haskell, and Elixir. This library transforms Emacs Lisp into a more expressive functional programming language with advanced features including automatic currying, sophisticated pattern matching, type systems, syntax transformations, and specialized development tools.
 
 #+begin_src elisp :exports both :results output 
   ;; -*- l-syntax: t; -*-
 
   @doc "A function that returns the nth Fibonacci number.
-  This function grows exponentially.
-  "
+  This function grows exponentially and demonstrates pattern matching."
   (ldef fib ((n 0)) 0)
   (ldef fib ((n 1)) 1)
   (ldef fib ((n :integer))
         (+ (fib (- n 1))
            (fib (- n 2))))
 
-
-
-  @doc "This function calculates delta in a quadratic function"
-
+  @doc "This function calculates delta in a quadratic function
+  and demonstrates automatic currying capabilities."
   (ldef delta ((a :number) (b :number) (c :number))
         (- (* b b) (* 4 a c)))
 
-  ;; it can be called in multiple ways:
+  ;; Multiple calling styles with automatic currying:
+  ((((delta) 1) 2) 3)  ;; Chained partial application
+  (delta 1 2 3)        ;; Direct application
+  (funcall (delta 1 2) 3) ;; Partial with funcall
 
-  ((((delta) 1 ) 2) 3) ;; as it has auto currying but no need to use `funcall'
-  (delta 1 2 3)        ;; evaluates the same result
+  @doc "Sum function with rest parameters for variadic arguments."
+  (ldef sum ((nums :rest)) (apply '+ nums))
+  (sum 1 2 3 4 5)      ;; => 15
+
+  @doc "Greeting function with value-based pattern matching."
+  (ldef greet ((name "Alice")) "Hello, Alice!")
+  (ldef greet ((name :string)) (concat "Hi, " name "!"))
+  (greet "Alice")      ;; => "Hello, Alice!"
+  (greet "Bob")        ;; => "Hi, Bob!"
 #+end_src
-
 
 ** Features
 
-- Automatic currying with =ldef=
-- Pattern matching with =ldef=
-- Type matching with =ldef=
-- Partial application with =lpartial=
-- Placeholder substitution with =__=
-- Custom syntax with =with-l=
-- Optional syntax transformation via =l-syntax=
-- Elixir style documentation with =@doc=
-- Emacs lisp major mode inspired =l-mode=, extending the syntax highlight
+- **Automatic currying** with =ldef= - functions automatically curry when called with fewer arguments
+- **Advanced pattern matching** with =ldef= - supports value matching, type matching, and rest parameters
+- **Comprehensive type system** - extensive type predicates for robust pattern matching
+- **Partial application** with =lpartial= - create partially applied functions
+- **Placeholder substitution** with =__= - elegant placeholder-based expressions
+- **Lambda syntax** with =l= - arrow notation for concise function definitions
+- **Syntax transformation** with =with-l= and =l-syntax= - enable natural curried function call syntax
+- **Documentation system** with =@doc= - Elixir-style documentation annotations
+- **Enhanced major mode** with =l-mode= - specialized syntax highlighting and development tools
+- **Function composition** with =lcomp= - compose functions for elegant data transformation
+- **Specialized loading** with =l-require= - enhanced library loading with automatic l-syntax processing
+- **Generic function management** - comprehensive tools for function lifecycle management
 
 Check [[./changelog.org][changelog]] for more information.
 
 ** Usage
 
-This package is not on melpa/elpa (yet?), but you can install via =use-package/straight=:
+This package is not on MELPA/ELPA (yet?), but you can install via =use-package/straight=:
 
 #+begin_src elisp
   (use-package l
     :straight (:type git :host github :repo "viglioni/l-el" :tag "v0.2.0")
-    :mode ("\\.el\\'" . l-mode) ;; extended syntax highlight
+    :mode ("\\.el\\'" . l-mode) ;; Enhanced syntax highlighting
     :custom
-    (l-syntax t) ;; optional: globaly enable l-syntax. Advices needed.
+    (l-syntax t) ;; Optional: globally enable l-syntax transformations
     :init
-    (l-syntax-advices) ;; to be able to run without using `with-l'
+    (l-syntax-advices) ;; Enable automatic syntax transformation
     ;; ...
     )
 #+end_src
 
-
-Or clone this repo, add =l.el= to your load path and require it:
+Or clone this repository, add =l.el= to your load path and require it:
 
 #+begin_src emacs-lisp
 (require 'l)
@@ -103,24 +115,27 @@ Or clone this repo, add =l.el= to your load path and require it:
 
 ** Configuration
 
-The =l-syntax= variable controls syntax transformation behavior. It can be set globally:
+The =l-syntax= variable controls syntax transformation behavior and can be configured in multiple ways:
 
+***Global Configuration:***
 #+begin_src emacs-lisp
 (setq l-syntax t)
+(l-syntax-advices)  ; Enable automatic transformation for evaluation functions
 #+end_src
 
-Or locally in a file using a property line:
-
+***File-local Configuration (Property Line):***
 #+begin_src emacs-lisp
 ;; -*- l-syntax: t; -*-
 #+end_src
 
-To enable syntax transformations for evaluation functions, run:
-
+***File-local Configuration (Local Variables):***
 #+begin_src emacs-lisp
-(l-syntax-advices)
+;; Local Variables:
+;; l-syntax: t
+;; End:
 #+end_src
 
+When enabled, =l-syntax= automatically wraps expressions in =with-l= during =eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and =load= operations, enabling natural curried function syntax without explicit =with-l= wrapping.
 * API Reference
 
 ** Variables
@@ -246,6 +261,74 @@ Remove generic function NAME and all its methods.
 
 This function removes a generic function from the registry and unbinds the function symbol.
 
+
+*** =l-mode=
+
+Enhanced major mode extending =emacs-lisp-mode= with specialized features for l.el.
+
+This major mode provides:
+- Enhanced syntax highlighting for =@doc= annotations
+- Automatic activation when =l-syntax= is enabled
+- Full Emacs Lisp compatibility with additional l.el-specific features
+- Proper indentation for l.el constructs
+
+The mode is automatically activated for =.el= files when configured appropriately and provides a better development experience when working with l.el syntax.
+
+**** Examples:
+#+begin_src emacs-lisp
+;; Manual activation
+(l-mode)
+
+;; Automatic activation via use-package
+(use-package l
+  :mode ("\\.el\\'" . l-mode))
+#+end_src
+
+*** =l-require (feature &optional filename noerror)=
+
+Enhanced library loading with automatic l-syntax processing.
+
+Similar to =require= but with enhanced support for files that declare l-syntax support. When loading files with l-syntax enabled, automatically processes l.el syntax transformations.
+
+FEATURE is the feature symbol to require.
+FILENAME is the optional file name to load.
+NOERROR when non-nil, don't signal an error if the file is not found.
+
+**** Examples:
+#+begin_src emacs-lisp
+;; Load a library with l-syntax support
+(l-require 'my-l-library)
+
+;; Load with specific filename
+(l-require 'utilities "my-utils.el")
+
+;; Load without error if not found
+(l-require 'optional-feature nil t)
+#+end_src
+
+** Utilities
+
+*** =lcomp (&rest functions)=
+
+Compose functions for elegant data transformation.
+
+Returns a new function that applies FUNCTIONS in right-to-left order (mathematical composition). The rightmost function can accept multiple arguments, while subsequent functions must accept a single argument.
+
+**** Examples:
+#+begin_src emacs-lisp
+;; Basic composition
+(ldef double (l x -> (* 2 x)))
+(ldef add-one (l x -> (+ 1 x)))
+((lcomp add-one double) 5)  ;; => 11 (double first, then add-one)
+
+;; Multiple function composition
+(ldef negate (l x -> (- x)))
+(ldef square (l x -> (* x x)))
+((lcomp negate square add-one double) 3)  ;; => -49
+
+;; With built-in functions
+((lcomp 'car 'reverse) '(1 2 3 4))  ;; => 4
+#+end_src
 * Type System
 
 The library supports the following type predicates for pattern matching:

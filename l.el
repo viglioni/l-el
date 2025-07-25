@@ -29,50 +29,128 @@
 ;; l.el provides a modern functional programming approach to writing
 ;; Emacs Lisp, drawing inspiration from Common Lisp, Haskell and Elixir.
 ;;
-;; This library introduces currying, partial application, pattern matching,
-;; and placeholder substitution utilities that make Emacs Lisp more expressive
+;; This comprehensive library introduces currying, partial application,
+;; pattern matching, placeholder substitution, syntax transformations,
+;; and specialized development tools that make Emacs Lisp more expressive
 ;; and closer to modern functional programming languages.
 ;;
 ;; Key features:
 ;; - Automatic currying with `ldef'
-;; - Pattern matching with `ldef'
-;; - Type matching with `ldef'
+;; - Advanced pattern matching with `ldef' (value, type, :rest parameters)
+;; - Type matching with comprehensive predicate system
 ;; - Partial application with `lpartial'
 ;; - Placeholder substitution with `__'
-;; - Custom syntax `with-l'
-;; - Optional syntax transformation via `l-syntax'
+;; - Lambda syntax with `l' and arrow notation
+;; - Custom syntax transformation with `with-l'
+;; - File-level syntax transformation via `l-syntax'
+;; - Documentation annotations with `@doc'
+;; - Enhanced major mode with `l-mode'
+;; - Specialized loading with `l-require'
+;; - Function composition utilities
+;; - Generic function cleanup and management
 ;;
-;; Configuration:
-;; The `l-syntax' variable controls syntax transformation behavior.
-;; It can be set globally:
+;; Syntax Transformation:
+;; The `l-syntax' system provides automatic syntax transformation for
+;; evaluation operations.  It can be configured in multiple ways:
 ;;
+;; Global configuration:
 ;;   (setq l-syntax t)
+;;   (l-syntax-advices)  ; Enable automatic transformation
 ;;
-;; Or locally in a file using a property line:
-;;
+;; File-local configuration using property line:
 ;;   ;; -*- l-syntax: t; -*-
 ;;
-;; When enabled, this allows for more concise syntax transformations
-;; and enhanced readability in functional compositions.
+;; File-local configuration using local variables:
+;;   ;; Local Variables:
+;;   ;; l-syntax: t
+;;   ;; End:
+;;
+;; When enabled, l-syntax automatically wraps expressions in `with-l'
+;; during `eval-last-sexp', `eval-region', `eval-buffer', `load-file',
+;; and `load' operations, enabling natural curried function syntax
+;; without explicit `with-l' wrapping.
+;;
+;; Enhanced Major Mode:
+;; l-mode extends emacs-lisp-mode with specialized syntax highlighting:
+;; - Enhanced highlighting for @doc annotations
+;; - Automatic activation when l-syntax is enabled
+;; - Full Emacs Lisp compatibility
+;;
+;; Documentation System:
+;; The @doc macro provides enhanced documentation capabilities:
+;;   (@doc "Adds two numbers together."
+;;    (ldef add (x y) (+ x y)))
+;;
+;; When l-syntax is t, you can use Elixir-style syntax without parentheses:
+;;   @doc "Adds two numbers together."
+;;   (ldef add (x y) (+ x y))
+;;
+;; This associates documentation with generic functions defined using ldef.
+;;
+;; Advanced Pattern Matching:
+;; ldef supports sophisticated pattern matching including:
+;; - Value matching: (arg "specific-value")
+;; - Type matching: (arg :integer), (arg :string), etc.
+;; - Rest parameters: (args :rest) for variadic functions
+;; - Wildcard patterns: _ignore, _var
+;; - Automatic specificity ordering for method dispatch
+;;
+;; Type System:
+;; Comprehensive type predicate system supporting:
+;; :buffer, :callable, :cons, :float, :function, :hash-table,
+;; :integer, :list, :null, :number, :sequence, :string, :symbol, :vector
+;;
+;; Specialized Loading:
+;; l-require provides enhanced library loading with automatic l-syntax
+;; processing for files that declare l-syntax support.
+;;
+;; Function Utilities:
+;; Additional utilities for functional programming including:
+;; - Function composition with `lcomp'
+;; - Enhanced currying and partial application
+;; - Generic function management and cleanup
 ;;
 ;; Example usage:
 ;;
+;;   Basic function definition and currying:
 ;;   (ldef add3 (x y z) (+ x y z))
 ;;   (funcall (add3 1 2) 3) ; => 6
 ;;
+;;   Pattern matching with types and values:
 ;;   (ldef greet ((name "Alice")) "Hello, Alice!")
-;;   (ldef greet (name) (concat "Hi, " name "!"))
+;;   (ldef greet ((name :string)) (concat "Hi, " name "!"))
 ;;   (greet "Alice") ; => "Hello, Alice!"
 ;;   (greet "Bob")   ; => "Hi, Bob!"
 ;;
-;;   (with-l
-;;     ((add3 1) 2 3)) ; => 6
+;;   Rest parameters:
+;;   (ldef sum ((nums :rest)) (apply '+ nums))
+;;   (sum 1 2 3 4 5) ; => 15
 ;;
+;;   Syntax transformation:
+;;   (with-l ((add3 1) 2 3)) ; => 6
+;;
+;;   Placeholder substitution:
 ;;   (__ (+ __ (* __ 2)) 5) ; => 15
 ;;
+;;   Partial application:
 ;;   (funcall (lpartial '+ 10) 5) ; => 15
 ;;
-;; Check functions for more documentation.
+;;   Lambda with arrow syntax:
+;;   (l x y -> (+ x y)) ; => (lambda (x y) (+ x y))
+;;
+;;   Function composition:
+;;   (ldef double (l x -> (* 2 x)))
+;;   (ldef add-one (l x -> (+ 1 x)))
+;;   (funcall (lcomp add-one double) 5) ; => 11
+;;
+;;   Documentation annotation:
+;;   @doc "Multiplies two numbers."
+;;   (ldef multiply (x y) (* x y))
+;;
+;; The library is designed to be incrementally adoptable - you can use
+;; individual features without enabling the full syntax transformation
+;; system, or enable l-syntax globally for a complete functional
+;; programming experience.
 ;;
 ;;; Code:
 
