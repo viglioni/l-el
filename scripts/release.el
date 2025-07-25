@@ -39,12 +39,12 @@
     (dolist (file (directory-files-recursively default-directory "\\.el$"))
       (with-temp-buffer
         (insert-file-contents file)
-        (when (search-forward ";; since NEXT" nil t)
+        (when (search-forward ";; since 0.3.0" nil t)
           (replace-match (format ";; since %s" new-version))
           (write-region (point-min) (point-max) file)
           (message "Updated %s" file))))
 
-    ;; Update "since: NEXT" to new version in all .el files
+    ;; Update "since: 0.3.0" to new version in all .el files
     (dolist (file (directory-files-recursively default-directory "\\.el$"))
       (with-temp-buffer
         (insert-file-contents file)

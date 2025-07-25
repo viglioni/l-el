@@ -5,7 +5,7 @@
 ;;
 ;; GNU Public License 3.0
 ;;
-;; since: NEXT
+;; since: 0.3.0
 ;;
 ;; l-test.el:
 ;; Tests for l.el

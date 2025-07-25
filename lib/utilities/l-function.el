@@ -26,7 +26,7 @@
 ;; This is a sublibrary of l.el providing additional functionality.
 ;; This file uses l-syntax
 ;;
-;; since NEXT
+;; since 0.3.0
 
 ;;; Code:
 
@@ -38,7 +38,7 @@ Function composition allows you to combine multiple functions into a single func
 where the output of one function becomes the input of the next. The composition
 is applied right to left, meaning the rightmost function is applied first.
 
-since: NEXT
+since: 0.3.0
 
 Arguments:
 - No arguments: returns identity function

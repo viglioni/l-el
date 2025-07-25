@@ -97,7 +97,7 @@ This package is not on MELPA/ELPA (yet?), but you can install via =use-package/s
 
 #+begin_src elisp
   (use-package l
-    :straight (:type git :host github :repo "viglioni/l-el" :tag "v0.2.0")
+    :straight (:type git :host github :repo "viglioni/l-el" :tag "v0.3.0")
     :mode ("\\.el\\'" . l-mode) ;; Enhanced syntax highlighting
     :custom
     (l-syntax t) ;; Optional: globally enable l-syntax transformations
