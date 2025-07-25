@@ -1,10 +1,36 @@
-;; -*- lexical-binding: t; l-syntax: t; -*-
+;;; package --- Summary ;;; -*- lexical-binding: t; l-syntax: t; -*-
+
+;; Copyright (C) 2025 Laura Viglioni
+
+;; Author: Laura Viglioni
+;; Keywords: lisp, functional, programming, utilities
+;; URL: https://github.com/viglioni/l-el
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; This is a sublibrary of l.el providing additional functionality.
+;; This file uses l-syntax
+;;
+;; since NEXT
 
 ;;; Code:
+
 (require 'l-main)
-
-
-
 
 @doc "`lcomp' provides function composition right to left.
 
@@ -12,7 +38,7 @@ Function composition allows you to combine multiple functions into a single func
 where the output of one function becomes the input of the next. The composition
 is applied right to left, meaning the rightmost function is applied first.
 
-Since: NEXT
+since: NEXT
 
 Arguments:
 - No arguments: returns identity function
@@ -43,15 +69,12 @@ Mathematical composition:
 \((ldef h (l x -> (- x 3)))
 \((lcomp f g h) 10) ;; => (f (g (h 10))) => (f (g 7)) => (f 14) => 15"
 
- (ldef lcomp () (l x -> x))
- (ldef lcomp ((f :function)) f)
- (ldef lcomp ((f :function) (g :function))
-       `(lambda (&rest args) (funcall (quote ,f) (apply (quote ,g) args))))
- (ldef lcomp ((f :function) (g :function) (fn-list :rest))
-       (apply 'lcomp (lcomp f g) fn-list))
-
- 
-
+(ldef lcomp () (l x -> x))
+(ldef lcomp ((f :function)) f)
+(ldef lcomp ((f :function) (g :function))
+      `(lambda (&rest args) (funcall (quote ,f) (apply (quote ,g) args))))
+(ldef lcomp ((f :function) (g :function) (fn-list :rest))
+      (apply 'lcomp (lcomp f g) fn-list))
 
 
 (provide 'l-function)
