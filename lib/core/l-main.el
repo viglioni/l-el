@@ -263,6 +263,7 @@ converts them to (funcall (fn args) more-args).
 The transformation rules:
 - ((fn args) more-args) becomes (funcall (fn args) more-args)
 - Lambda expressions are preserved as-is
+- Special forms (ldef, defun, etc.) are preserved as-is
 - Regular expressions are recursively processed
 - Atoms are left unchanged
 
@@ -270,11 +271,37 @@ EXPR is the expression to transform, can be an atom, list, or nested structure.
 Returns the transformed expression with curried calls
 converted to funcall forms."
   (cond
+   ;; Don't transform special forms
+   ((and (consp expr)
+         (symbolp (car expr))
+         (memq (car expr) '(ldef defun defmacro defvar defcustom 
+                           lambda quote function let let* progn
+                           if when unless cond case)))
+    ;; For special forms, only recursively transform their body parts where appropriate
+    (cond 
+      ((memq (car expr) '(ldef defun defmacro))
+       ;; For function definitions, transform the body but not the signature
+       (if (>= (length expr) 4)
+           `(,(car expr) ,(cadr expr) ,(caddr expr) 
+             ,@(mapcar #'l--transform-curry-calls (cdddr expr)))
+         expr))
+      ((memq (car expr) '(let let*))
+       ;; For let forms, transform bindings and body
+       `(,(car expr) 
+         ,(mapcar (lambda (binding)
+                    (if (consp binding)
+                        `(,(car binding) ,(l--transform-curry-calls (cadr binding)))
+                      binding))
+                  (cadr expr))
+         ,@(mapcar #'l--transform-curry-calls (cddr expr))))
+      (t
+       ;; For other special forms, transform arguments recursively
+       `(,(car expr) ,@(mapcar #'l--transform-curry-calls (cdr expr))))))
    ((and (consp expr)
          (consp (car expr))
          (not (eq (caar expr) 'lambda)))
     ;; Transform ((fn args) more-args) to (funcall (fn args) more-args)
-    `(funcall ,(l--transform-curry-calls (car expr)) ,@(cdr expr)))
+    `(funcall ,(l--transform-curry-calls (car expr)) ,@(mapcar #'l--transform-curry-calls (cdr expr))))
    ((consp expr)
     (mapcar #'l--transform-curry-calls expr))
    (t expr)))

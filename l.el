@@ -90,5 +90,8 @@
 ;; l-mode
 (require 'l-mode)
 
+;; utilities
+(l-require 'l-function)
+
 (provide 'l)
 ;;; l.el ends here

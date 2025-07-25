@@ -116,6 +116,29 @@ This function adds around advice to `eval-last-sexp', `eval-region',
   (advice-remove 'load                         #'l--load-file-advice))
 
 
+(defun l-require (feature &optional filename noerror)
+  "Load FEATURE using l-syntax transformations when the file declares it.
+This function loads a library and automatically applies l-syntax processing
+if the file contains the l-syntax file-local variable declaration.
+
+FEATURE is the library name symbol to load.
+FILENAME is optional - if provided, load this file instead of searching.
+NOERROR - if non-nil, don't signal error if file not found.
+
+Returns FEATURE if successful, nil if NOERROR is non-nil and loading failed."
+  (let* ((feature-name (symbol-name feature))
+         (file-to-load (or filename
+                           (locate-library feature-name)))
+         (l-syntax t))
+    (if file-to-load
+        (progn
+          ;; Use load instead of require - this triggers our advice
+          (l-syntax--load file-to-load)
+          feature)
+      (if noerror
+          nil
+        (error "Cannot find library `%s'" feature-name)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Use l syntax without `with-l' ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -205,23 +228,31 @@ ARGS are additional arguments passed to load."
     ;; l-syntax not enabled - use original function
     (apply orig-fun args)))
 
+(defun l-syntax--load (filename)
+  "Load FILENAME with l-syntax processing enabled.
+Only processe
+s .el files, returns nil for other files.
+This is the core loading logic used by both advice and l-require."
+  (when (and (file-exists-p filename) (string-suffix-p ".el" filename))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (when (l--should-use-l-syntax-p)
+        ;; l-syntax enabled - wrap and evaluate
+        (let* ((file-content (buffer-string))
+               (grouped-content (l--group-doc-in-content file-content)))
+          (eval (read (format "(with-l %s)" grouped-content)))
+          t)))))
+
 (defun l--load-file-advice (orig-fun filename &rest args)
   "Advice for `load' and `load-file' to handle l-syntax.
 Only processes .el files, .elc files are loaded normally.
 ORIG-FUN is the original load function.
 FILENAME is the file to load.
 ARGS are additional arguments passed to load."
-  (if (and (file-exists-p filename) (string-suffix-p ".el" filename))
-      (with-temp-buffer
-        (insert-file-contents filename)
-        (if (l--should-use-l-syntax-p)
-            ;; l-syntax enabled - wrap and evaluate
-            (let* ((file-content (buffer-string))
-                   (grouped-content (l--group-doc-in-content file-content)))
-              (eval (read (format "(with-l %s)" grouped-content))))
-          ;; l-syntax not enabled - use original function
-          (apply orig-fun filename args)))
-    ;; Not an .el file or doesn't exist - use original function
+  (if (l-syntax--load filename)
+      ;; Successfully loaded with l-syntax
+      t
+    ;; Not an .el file, doesn't exist, or l-syntax not enabled - use original function
     (apply orig-fun filename args)))
 
 (defun l--group-doc-in-content (content)
