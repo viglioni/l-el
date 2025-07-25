@@ -448,8 +448,8 @@
           (with-l
            (defun regular-double (x) (* x 2))
            (ldef curried-add (x y) (+ x y))
-           (defmacro make-list (x) `(list ,x ,x))
-           (+ (regular-double 3) ((curried-add 2) 4) (car (make-list 1))))
+           (defmacro test/make-list (x) `(list ,x ,x))
+           (+ (regular-double 3) ((curried-add 2) 4) (car (test/make-list 1))))
           (expect (+ 6 6 1) :to-equal 13))))
 
     )
