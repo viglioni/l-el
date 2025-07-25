@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ** Added
 - =l-mode=
+- =utilities/lcomp=
+- =l-require=
+
+** Fixed
+- =with-l= behaviour with =ldef=
   
 * 0.2.0 - 2025-07-15
 ** Added
