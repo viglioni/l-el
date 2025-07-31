@@ -26,7 +26,7 @@
 ;; This is a sublibrary of l.el providing additional functionality.
 ;; This file uses l-syntax
 ;;
-;; since 0.3.1
+;; since 0.3.2
 
 ;;; Code:
 
