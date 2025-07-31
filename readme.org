@@ -100,11 +100,11 @@ This package is not on MELPA/ELPA (yet?), but you can install via =use-package/s
 #+begin_src elisp
   (use-package l
     ;; clones latest release
-      :straight (l :type git :host github :repo "viglioni/l-el" :branch "latest-release")
+    :straight (l :type git :host github :repo "viglioni/l-el" :branch "latest-release")
     :mode ("\\.el\\'" . l-mode) ;; Enhanced syntax highlighting
     :custom
     (l-syntax t) ;; Optional: globally enable l-syntax transformations
-    :init
+    :config
     (l-syntax-advices) ;; Enable automatic syntax transformation
     ;; ...
     )
