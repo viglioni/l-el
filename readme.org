@@ -40,6 +40,8 @@
 
 * Overview
 
+Check the [[https://github.com/viglioni/l-el/tree/latest-release][latest release]] code.
+
 =l.el= provides a comprehensive modern functional programming approach to writing Emacs Lisp, drawing inspiration from Common Lisp, Haskell, and Elixir. This library transforms Emacs Lisp into a more expressive functional programming language with advanced features including automatic currying, sophisticated pattern matching, type systems, syntax transformations, and specialized development tools.
 
 #+begin_src elisp :exports both :results output 
@@ -98,7 +100,7 @@ This package is not on MELPA/ELPA (yet?), but you can install via =use-package/s
 #+begin_src elisp
   (use-package l
     ;; clones latest release
-    :straight (l :type git :host github :repo "viglioni/l-el")
+      :straight (l :type git :host github :repo "viglioni/l-el" :branch "latest-release")
     :mode ("\\.el\\'" . l-mode) ;; Enhanced syntax highlighting
     :custom
     (l-syntax t) ;; Optional: globally enable l-syntax transformations
