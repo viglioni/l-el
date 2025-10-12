@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+* 0.3.3 - 2025-10-12
+
+** Fixed
+- l-syntax parse of alists
+
 * 0.3.2 - 2025-07-31
 ** Added
 - =auto-release.yml=  workflow and [[https://github.com/viglioni/l-el/tree/latest-release][latest-release]] branch

@@ -1,7 +1,7 @@
 (source gnu)
 (source melpa)
 
-(package "l.el" "0.3.2" "Modern functional programming utilities and syntax.")
+(package "l.el" "0.3.3" "Modern functional programming utilities and syntax.")
 
 (depends-on "emacs" "29")
 (depends-on "cl-lib")

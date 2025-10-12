@@ -4,7 +4,7 @@
 ;; Copyright (C) 2025 Laura Viglioni
 
 ;; Author: Laura Viglioni
-;; Version: 0.3.2
+;; Version: 0.3.3
 ;; Package-Requires: ((emacs "29"))
 ;; Keywords: lisp, functional, programming, utilities
 ;; URL: https://github.com/viglioni/l-el
