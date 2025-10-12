@@ -274,20 +274,23 @@ converted to funcall forms."
    ;; Don't transform special forms
    ((and (consp expr)
          (symbolp (car expr))
-         (memq (car expr) '(ldef defun defmacro defvar defcustom 
+         (memq (car expr) '(ldef defun defmacro defvar defcustom
                            lambda quote function let let* progn
                            if when unless cond case)))
     ;; For special forms, only recursively transform their body parts where appropriate
-    (cond 
+    (cond
+      ;; quote and function: return as-is, their contents are data not code
+      ((memq (car expr) '(quote function))
+       expr)
       ((memq (car expr) '(ldef defun defmacro))
        ;; For function definitions, transform the body but not the signature
        (if (>= (length expr) 4)
-           `(,(car expr) ,(cadr expr) ,(caddr expr) 
+           `(,(car expr) ,(cadr expr) ,(caddr expr)
              ,@(mapcar #'l--transform-curry-calls (cdddr expr)))
          expr))
       ((memq (car expr) '(let let*))
        ;; For let forms, transform bindings and body
-       `(,(car expr) 
+       `(,(car expr)
          ,(mapcar (lambda (binding)
                     (if (consp binding)
                         `(,(car binding) ,(l--transform-curry-calls (cadr binding)))

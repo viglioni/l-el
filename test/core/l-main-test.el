@@ -338,7 +338,16 @@
         
         (test-it "works with quoted expressions"
           (expect (with-l (quote (1 2 3))) :to-equal '(1 2 3)))
-        
+
+        (test-it "works with quoted dotted pairs"
+          (expect (with-l '(1 . 2)) :to-equal '(1 . 2)))
+
+        (test-it "works with quoted nested dotted pairs"
+          (expect (with-l '((1 . 2))) :to-equal '((1 . 2))))
+
+        (test-it "works with complex quoted structures with dotted pairs"
+          (expect (with-l '(:mode (foo . bar))) :to-equal '(:mode (foo . bar))))
+
         (test-it "works with progn"
           (expect (with-l (progn (+ 1 2) (+ 3 4))) :to-equal 7)))
       )
