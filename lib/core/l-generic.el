@@ -502,7 +502,7 @@ BODY is the function body to execute when pattern matches."
   "Add DOCSTRING to FNAME defined with `ldef'."
   (l--add-doc-registry fname docstring)
 ;;  (l-generic--generate-dispatch-function)
-  (print fname)
+
   ;;(print (l--get-from-registry fname))
   )
 
