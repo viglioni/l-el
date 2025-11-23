@@ -60,4 +60,33 @@
             (add-pair (lambda (alist) (cons '(new . value) alist)))
             (reverse-list (lambda (lst) (reverse lst))))
         (expect (funcall (lcomp get-keys add-pair reverse-list) '((b . 2) (a . 1)))
-                :to-equal '(new a b))))))
+                :to-equal '(new a b)))))
+
+  (describe "lcomp with __ placeholder syntax"
+    (test-it "composes lambda with __ expression"
+      (expect (with-l ((lcomp (l x -> (1+ x)) (exp __)) 10))
+              :to-equal (1+ (exp 10))))
+
+    (test-it "composes multiple functions with __ in the middle"
+      (expect (with-l ((lcomp (l x -> (* x 2)) (1+ __) (exp __)) 5))
+              :to-equal (* 2 (1+ (exp 5)))))
+
+    (test-it "uses __ with built-in functions"
+      (expect (with-l ((lcomp (l x -> (concat "Result: " x)) (number-to-string __) (* __ 10)) 5))
+              :to-equal "Result: 50"))
+
+    (test-it "combines __ with regular lambdas"
+      (let ((square (lambda (x) (* x x))))
+        (expect (with-l ((lcomp (l x -> (+ x 1)) square (abs __)) -3))
+                :to-equal (1+ (* 3 3)))))
+
+    (test-it "uses __ with list operations"
+      (expect (with-l ((lcomp
+                        (l x -> (length x))
+                        (reverse __)
+                        #'cdr) '(1 2 3 4)))
+              :to-equal (length (reverse (cdr '(1 2 3 4))))))
+
+    (test-it "uses __ multiple times in same expression"
+      (expect (with-l ((lcomp (l x -> (* x 2)) (+ __ __)) 5))
+              :to-equal 20))))

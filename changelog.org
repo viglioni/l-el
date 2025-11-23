@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+** Added
+- tests for edge cases wth l-syntax
+- =lcomp= with =__= placeholder
 * 0.3.3 - 2025-10-12
 
 ** Fixed

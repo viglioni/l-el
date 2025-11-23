@@ -286,8 +286,148 @@
         (expect (rest-fun 1 2 3) :to-equal '(3))
         (expect (funcall (rest-fun 1 2) 3 4) :to-equal '(3 4)))
 
-      (test-it ":rest operator can only exist in the final argument"      
-        (expect (ldef rest-fail ((c: number) (a :rest) (b :number)) nil) :to-throw))))
+      (test-it ":rest operator can only exist in the final argument"
+        (expect (ldef rest-fail ((c: number) (a :rest) (b :number)) nil) :to-throw)))
+
+    (describe "pattern matching with complex data structures"
+      (describe "alists"
+        (before-all
+          (ldef process-alist ((config '((key . value)))) "matched single pair alist")
+          (ldef process-alist ((config '((a . b) (c . d)))) "matched multi pair alist")
+          (ldef process-alist (config) "other"))
+
+        (test-it "matches single pair alist"
+          (expect (process-alist '((key . value))) :to-equal "matched single pair alist"))
+
+        (test-it "matches multi pair alist"
+          (expect (process-alist '((a . b) (c . d))) :to-equal "matched multi pair alist"))
+
+        (test-it "falls through for different alists"
+          (expect (process-alist '((x . y))) :to-equal "other")
+          (expect (process-alist '()) :to-equal "other")))
+
+      (describe "plists"
+        (before-all
+          (ldef handle-opts ((opts '(:key value))) "matched key-value plist")
+          (ldef handle-opts ((opts '(:foo bar :baz qux))) "matched multi-key plist")
+          (ldef handle-opts (opts) "other"))
+
+        (test-it "matches single key-value plist"
+          (expect (handle-opts '(:key value)) :to-equal "matched key-value plist"))
+
+        (test-it "matches multi-key plist"
+          (expect (handle-opts '(:foo bar :baz qux)) :to-equal "matched multi-key plist"))
+
+        (test-it "falls through for different plists"
+          (expect (handle-opts '(:other stuff)) :to-equal "other")))
+
+      (describe "nested dotted pairs"
+        (before-all
+          (ldef handle-nested ((data '((a . (b . c))))) "matched nested dotted")
+          (ldef handle-nested ((data '(x . (y . z)))) "matched improper nested")
+          (ldef handle-nested (data) "other"))
+
+        (test-it "matches nested dotted pairs"
+          (expect (handle-nested '((a . (b . c)))) :to-equal "matched nested dotted"))
+
+        (test-it "matches improper nested lists"
+          (expect (handle-nested '(x . (y . z))) :to-equal "matched improper nested"))
+
+        (test-it "falls through for different structures"
+          (expect (handle-nested '((a . b))) :to-equal "other")))
+
+      (describe "vectors"
+        (before-all
+          (ldef process-vec ((arr [1 2 3])) "matched [1 2 3]")
+          (ldef process-vec ((arr [])) "matched empty vector")
+          (ldef process-vec (arr) "other"))
+
+        (test-it "matches specific vector"
+          (expect (process-vec [1 2 3]) :to-equal "matched [1 2 3]"))
+
+        (test-it "matches empty vector"
+          (expect (process-vec []) :to-equal "matched empty vector"))
+
+        (test-it "falls through for different vectors"
+          (expect (process-vec [1 2]) :to-equal "other")
+          (expect (process-vec [4 5 6]) :to-equal "other")))
+
+      (describe "mixed complex structures"
+        (before-all
+          (ldef config-handler ((cfg '(:mode (foo . bar)))) "matched mode config")
+          (ldef config-handler ((cfg '(:type list :data ((a . b))))) "matched data config")
+          (ldef config-handler (cfg) "other"))
+
+        (test-it "matches mode config with dotted pair"
+          (expect (config-handler '(:mode (foo . bar))) :to-equal "matched mode config"))
+
+        (test-it "matches data config with nested alist"
+          (expect (config-handler '(:type list :data ((a . b)))) :to-equal "matched data config"))
+
+        (test-it "falls through for other configs"
+          (expect (config-handler '(:other stuff)) :to-equal "other")))
+
+      (describe "empty and nil edge cases"
+        (before-all
+          ;; Note: In Emacs Lisp, nil and '() are identical, so only one pattern will match
+          (ldef nil-handler ((x nil)) "matched nil or empty list")
+          (ldef nil-handler ((x 0)) "matched zero")
+          (ldef nil-handler (x) "other"))
+
+        (test-it "matches nil (which is also empty list in Emacs Lisp)"
+          (expect (nil-handler nil) :to-equal "matched nil or empty list")
+          (expect (nil-handler '()) :to-equal "matched nil or empty list"))
+
+        (test-it "matches zero specifically"
+          (expect (nil-handler 0) :to-equal "matched zero"))
+
+        (test-it "falls through for other values"
+          (expect (nil-handler 1) :to-equal "other")
+          (expect (nil-handler '(1)) :to-equal "other")))
+
+      (describe "multiple wildcards"
+        (before-all
+          (ldef ignore-edges (_ x _) x)
+          (ldef ignore-middle (a _ _ d) (list a d)))
+
+        (test-it "ignores first and last arguments"
+          (expect (ignore-edges 1 2 3) :to-equal 2)
+          (expect (ignore-edges "a" "b" "c") :to-equal "b"))
+
+        (test-it "ignores middle arguments"
+          (expect (ignore-middle 1 2 3 4) :to-equal '(1 4))
+          (expect (ignore-middle "a" "b" "c" "d") :to-equal '("a" "d"))))
+
+      (describe "improper lists"
+        (before-all
+          (ldef handle-improper ((x '(1 2 . 3))) "matched (1 2 . 3)")
+          (ldef handle-improper ((x '(a . b))) "matched (a . b)")
+          (ldef handle-improper (x) "other"))
+
+        (test-it "matches specific improper list"
+          (expect (handle-improper '(1 2 . 3)) :to-equal "matched (1 2 . 3)"))
+
+        (test-it "matches simple dotted pair"
+          (expect (handle-improper '(a . b)) :to-equal "matched (a . b)"))
+
+        (test-it "falls through for proper lists"
+          (expect (handle-improper '(1 2 3)) :to-equal "other")))
+
+      (describe "quoted symbols in patterns"
+        (before-all
+          (ldef quote-handler ((x '(quote foo))) "matched 'foo")
+          (ldef quote-handler ((x 'bar)) "matched bar symbol")
+          (ldef quote-handler (x) "other"))
+
+        (test-it "matches quoted symbol structure"
+          (expect (quote-handler '(quote foo)) :to-equal "matched 'foo"))
+
+        (test-it "matches specific symbol"
+          (expect (quote-handler 'bar) :to-equal "matched bar symbol"))
+
+        (test-it "falls through for other values"
+          (expect (quote-handler '(quote bar)) :to-equal "other")
+          (expect (quote-handler 'foo) :to-equal "other"))))
 
   (context "with-l"
 
@@ -349,7 +489,59 @@
           (expect (with-l '(:mode (foo . bar))) :to-equal '(:mode (foo . bar))))
 
         (test-it "works with progn"
-          (expect (with-l (progn (+ 1 2) (+ 3 4))) :to-equal 7)))
+          (expect (with-l (progn (+ 1 2) (+ 3 4))) :to-equal 7))
+
+        (test-it "works with alists"
+          (expect (with-l '((key . value) (foo . bar))) :to-equal '((key . value) (foo . bar))))
+
+        (test-it "works with nested alists"
+          (expect (with-l '((a . ((b . c) (d . e))))) :to-equal '((a . ((b . c) (d . e))))))
+
+        (test-it "works with plists"
+          (expect (with-l '(:key value :foo bar)) :to-equal '(:key value :foo bar)))
+
+        (test-it "works with mixed plist and dotted pairs"
+          (expect (with-l '(:mode (foo . bar) :config (baz . qux)))
+                  :to-equal '(:mode (foo . bar) :config (baz . qux))))
+
+        (test-it "works with vectors"
+          (expect (with-l [1 2 3]) :to-equal [1 2 3]))
+
+        (test-it "works with nested vectors"
+          (expect (with-l [[1 2] [3 4]]) :to-equal [[1 2] [3 4]]))
+
+        (test-it "works with quoted vectors"
+          (expect (with-l (quote [1 2 3])) :to-equal [1 2 3]))
+
+        (test-it "works with improper lists"
+          (expect (with-l '(1 2 . 3)) :to-equal '(1 2 . 3)))
+
+        (test-it "works with nested improper lists"
+          (expect (with-l '(a . (b . (c . d)))) :to-equal '(a . (b . (c . d)))))
+
+        (test-it "works with empty list"
+          (expect (with-l '()) :to-equal '()))
+
+        (test-it "works with nil"
+          (expect (with-l nil) :to-equal nil))
+
+        (test-it "works with quoted symbols"
+          (expect (with-l '(quote foo)) :to-equal '(quote foo)))
+
+        (test-it "works with complex backquoted expressions"
+          (let ((x 10))
+            (expect (with-l `(foo ,x ,(+ x 5))) :to-equal '(foo 10 15))))
+
+        (test-it "works with backquote and splice"
+          (let ((lst '(2 3)))
+            (expect (with-l `(1 ,@lst 4)) :to-equal '(1 2 3 4))))
+
+        (test-it "works with nested backquoted expressions"
+          (expect (with-l `(outer ,(+ 1 2) `(inner ,(+ 3 4))))
+                  :to-equal '(outer 3 `(inner ,(+ 3 4)))))
+
+        (test-it "works with mixed quoted and unquoted dotted pairs"
+          (expect (with-l (cons 'a (cons 'b '(c . d)))) :to-equal '(a b c . d))))
       )
 
     (describe "complex transformation scenarios"
@@ -460,6 +652,59 @@
            (defmacro test/make-list (x) `(list ,x ,x))
            (+ (regular-double 3) ((curried-add 2) 4) (car (test/make-list 1))))
           (expect (+ 6 6 1) :to-equal 13))))
+
+    (describe "currying with complex data structures"
+      (before-all
+        (ldef cons-builder (car cdr) (cons car cdr))
+        (ldef alist-getter (alist key) (alist-get key alist))
+        (ldef list-builder (a b c) (list a b c)))
+
+      (test-it "works with curried functions that build cons cells"
+        (expect (with-l ((cons-builder 'a) 'b)) :to-equal '(a . b)))
+
+      (test-it "works with curried functions that build complex structures"
+        (expect (with-l ((list-builder '(a . b)) '(c . d) '(e . f)))
+                :to-equal '((a . b) (c . d) (e . f))))
+
+      (test-it "works with curried functions receiving alists"
+        (let ((test-alist '((foo . 1) (bar . 2))))
+          (expect (with-l ((alist-getter test-alist) 'foo)) :to-equal 1)))
+
+      (test-it "works with nested currying and complex data"
+        (expect (with-l (((list-builder '(a . b)) '(c . d)) '(e . f)))
+                :to-equal '((a . b) (c . d) (e . f))))
+
+      (test-it "works with alists in expressions"
+        (expect (with-l (car '((key . value) (foo . bar))))
+                :to-equal '(key . value)))
+
+      (test-it "works with plists in curried calls"
+        (expect (with-l (plist-get '(:a 1 :b 2) :a)) :to-equal 1))
+
+      (test-it "works with vectors in curried context"
+        (expect (with-l (aref [1 2 3] 1)) :to-equal 2))
+
+      (test-it "works with improper lists in curried context"
+        (expect (with-l (car '(1 2 . 3))) :to-equal 1))
+
+      (test-it "works with complex nested structures in currying"
+        (expect (with-l ((list-builder '(:mode (foo . bar))) '(:config (baz . qux)) 'data))
+                :to-equal '((:mode (foo . bar)) (:config (baz . qux)) data)))
+
+      (test-it "preserves alist structure through currying chain"
+        (ldef alist-processor (alist transform) (mapcar transform alist))
+        (expect (with-l ((alist-processor '((a . 1) (b . 2))) 'cdr))
+                :to-equal '(1 2)))
+
+      (test-it "works with empty structures"
+        (expect (with-l ((list-builder '()) '() '())) :to-equal '(() () ())))
+        (expect (with-l (list [])) :to-equal '([])))
+
+      (test-it "works with mixed quoted and backquoted complex structures"
+        (let ((x 10))
+          ;; Use list or quote to avoid with-l treating the backquoted result as a curried call
+          (expect (with-l (list `(a . ,x) `(:b ,(+ x 5))))
+                  :to-equal '((a . 10) (:b 15))))))
 
     )
 

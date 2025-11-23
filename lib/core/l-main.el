@@ -157,7 +157,9 @@ Examples:
 BODY contains the expressions to transform.
 Regular function calls and other expressions are left unchanged."
   (let ((grouped-body (l--group-doc-expressions body)))
-    `(progn ,@(mapcar #'l--transform-curry-calls grouped-body))))
+    `(progn ,@(mapcar (lambda (expr)
+                        (l--transform-curry-calls (macroexpand-all expr)))
+                      grouped-body))))
 
 (defmacro l (&rest expr)
   "Lambda macro for creating functions with arrow syntax.

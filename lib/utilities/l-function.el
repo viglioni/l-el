@@ -32,50 +32,57 @@
 
 (require 'l-main)
 
-@doc "`lcomp' provides function composition right to left.
+(defmacro lcomp (&rest fns)
+  "`lcomp' provides function composition right to left.
 
-Function composition allows you to combine multiple functions into a single function,
-where the output of one function becomes the input of the next. The composition
-is applied right to left, meaning the rightmost function is applied first.
+Function composition allows you to combine multiple functions into a single
+function, where the output of one function becomes the input of the next.
+The composition is applied right to left, meaning the rightmost function
+is applied first.
 
-since: 0.3.0
+Each argument is automatically wrapped with `__', so you can use the `__'
+placeholder syntax directly: (lcomp (+ __ 1) (* __ 2)) instead of
+\(lcomp (__ (+ __ 1)) (__ (* __ 2))).
+
+since: 0.3.3
 
 Arguments:
 - No arguments: returns identity function
-- One function: returns the function unchanged  
+- One function: returns the function unchanged
 - Two or more functions: returns composed function
 
 Examples:
-Basic composition:
-\((ldef double (l x -> (* 2 x)))
-\((ldef add-one (l x -> (+ 1 x)))
-\((ldef composed (lcomp add-one double))
-\(composed 5) ;; => (add-one (double 5)) => (add-one 10) => 11
+Basic composition with lambdas:
+\(ldef double (l x -> (* 2 x)))
+\(ldef add-one (l x -> (+ 1 x)))
+\(funcall (lcomp add-one double) 5) ;; => 11
+
+Using __ placeholder syntax:
+\(funcall (lcomp (+ __ 1) (* __ 2)) 5) ;; => 11
+
+With `with-l' for cleaner syntax:
+\(with-l ((lcomp (+ __ 1) (* __ 2)) 5)) ;; => 11
 
 Multiple function composition:
-\((lcomp 'inc (l x -> (* 2 x)) (l x -> (* 3 x))) 10) ;; => (inc (* (* 10 3) 2)) ;; 61
-
-Identity cases:
-\((lcomp) 42) ;; => 42
-\((lcomp 'inc) 5) ;; => 6
+\(with-l ((lcomp (l x -> (+ x 1)) (* __ 2) (* __ 3)) 10)) ;; => 61
 
 String processing example:
-\((ldef trim-and-upper (lcomp 'string-upcase 'string-trim))
-\(trim-and-upper \"  hello  \") ;; => \"HELLO\"
+\(with-l ((lcomp upcase string-trim) \"  hello  \")) ;; => \"HELLO\"
 
-Mathematical composition:
-\((ldef f (l x -> (+ x 1)))
-\((ldef g (l x -> (* x 2)))  
-\((ldef h (l x -> (- x 3)))
-\((lcomp f g h) 10) ;; => (f (g (h 10))) => (f (g 7)) => (f 14) => 15"
+With local bindings:
+\(let ((square (lambda (x) (* x x))))
+  (with-l ((lcomp (+ __ 1) square) 3))) ;; => 10"
+  `(l--comp ,@(mapcar (lambda (x) `(__ ,x)) fns)))
 
-(ldef lcomp () (l x -> x))
-(ldef lcomp ((f :function)) f)
-(ldef lcomp ((f :function) (g :function))
+
+@doc "Internal function for `lcomp'. Composes functions right to left."
+(ldef l--comp () (l x -> x))
+(ldef l--comp ((f :function)) f)
+(ldef l--comp ((f :function) (g :function))
       `(lambda (&rest args) (funcall (quote ,f) (apply (quote ,g) args))))
-(ldef lcomp ((f :function) (g :function) (fn-list :rest))
-      (apply 'lcomp (lcomp f g) fn-list))
-
+(ldef l--comp ((f :function) (g :function) (fn-list :rest))
+      (apply 'l--comp (l--comp f g) fn-list))
 
 (provide 'l-function)
 ;;; l-function.el ends here
+
