@@ -1,0 +1,615 @@
+
+
+      ██████╗ ██╗       █████╗  ██╗   ██╗ ██████╗  ███████╗
+     ██╔════╝ ██║      ██╔══██╗ ██║   ██║ ██╔══██╗ ██╔════╝
+     ██║      ██║      ███████║ ██║   ██║ ██║  ██║ █████╗
+     ██║      ██║      ██╔══██║ ██║   ██║ ██║  ██║ ██╔══╝
+     ╚██████╗ ███████╗ ██║  ██║ ╚██████╔╝ ██████╔╝ ███████╗
+      ╚═════╝ ╚══════╝ ╚═╝  ╚═╝  ╚═════╝  ╚═════╝  ╚══════╝
+      ██████╗  ██████╗  ██████╗  ███████╗
+     ██╔════╝ ██╔═══██╗ ██╔══██╗ ██╔════╝
+     ██║      ██║   ██║ ██║  ██║ █████╗
+     ██║      ██║   ██║ ██║  ██║ ██╔══╝
+     ╚██████╗ ╚██████╔╝ ██████╔╝ ███████╗
+      ╚═════╝  ╚═════╝  ╚═════╝  ╚══════╝
+
+
+
+     Welcome to agent shell
+
+
+       Type help and press RET for details.
+
+       Like this package? Consider ✨sponsoring✨
+
+
+
+
+
+<shell-maker-failed-command>
+Claude Code> read l function
+<shell-maker-end-of-prompt>
+▶  completed  Starting agent
+
+  Creating client...
+
+  Subscribing...
+
+  Initializing...
+
+  Creating session...
+
+  Ready
+
+▶ Agent capabilities
+
+  prompt  image and embedded context
+  mcp     http and sse
+
+▶ Available modes
+
+  Always Ask            Prompts for permission on first use of each tool
+  Accept Edits          Automatically accepts file edit permissions for the session
+  Plan Mode             Claude can analyze but not modify files or execute commands
+  Bypass Permissions    Skips all permission prompts
+
+▶ Available commands
+
+  /compact          Clear conversation history but keep a summary in context. Optional: /compact [instructions for summarization]
+  /init             Initialize a new CLAUDE.md file with codebase documentation
+  /pr-comments      Get comments from a GitHub pull request
+  /review           Review a pull request
+  /security-review  Complete a security review of the pending changes on the current branch
+
+▶  completed   read  Read lib/utilities/l-function.el
+
+  ```
+  ;;; package --- Summary ;;; -*- lexical-binding: t; l-syntax: t; -*-
+
+  ;; Copyright (C) 2025 Laura Viglioni
+
+  ;; Author: Laura Viglioni
+  ;; Keywords: lisp, functional, programming, utilities
+  ;; URL: https://github.com/viglioni/l-el
+
+  ;; This file is not part of GNU Emacs.
+
+  ;; This program is free software: you can redistribute it and/or modify
+  ;; it under the terms of the GNU General Public License as published by
+  ;; the Free Software Foundation, either version 3 of the License, or
+  ;; (at your option) any later version.
+
+  ;; This program is distributed in the hope that it will be useful,
+  ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ;; GNU General Public License for more details.
+
+  ;; You should have received a copy of the GNU General Public License
+  ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  ;;; Commentary:
+
+  ;; This is a sublibrary of l.el providing additional functionality.
+  ;; This file uses l-syntax
+  ;;
+  ;; since 0.3.3
+
+  ;;; Code:
+
+  (require 'l-main)
+
+  ;; @doc "`_lcomp' provides function composition right to left.
+
+  ;; Function composition allows you to combine multiple functions into a single function,
+  ;; where the output of one function becomes the input of the next. The composition
+  ;; is applied right to left, meaning the rightmost function is applied first.
+
+  ;; since: 0.3.0
+
+  ;; Arguments:
+  ;; - No arguments: returns identity function
+  ;; - One function: returns the function unchanged  
+  ;; - Two or more functions: returns composed function
+
+  ;; Examples:
+  ;; Basic composition:
+  ;; \((ldef double (l x -> (* 2 x)))
+  ;; \((ldef add-one (l x -> (+ 1 x)))
+  ;; \((ldef composed (_lcomp add-one double))
+  ;; \(composed 5) ;; => (add-one (double 5)) => (add-one 10) => 11
+
+  ;; Multiple function composition:
+  ;; \((_lcomp 'inc (l x -> (* 2 x)) (l x -> (* 3 x))) 10) ;; => (inc (* (* 10 3) 2)) ;; 61
+
+  ;; Identity cases:
+  ;; \((_lcomp) 42) ;; => 42
+  ;; \((_lcomp 'inc) 5) ;; => 6
+
+  ;; String processing example:
+  ;; \((ldef trim-and-upper (_lcomp 'string-upcase 'string-trim))
+  ;; \(trim-and-upper \"  hello  \") ;; => \"HELLO\"
+
+  ;; Mathematical composition:
+  ;; \((ldef f (l x -> (+ x 1)))
+  ;; \((ldef g (l x -> (* x 2)))  
+  ;; \((ldef h (l x -> (- x 3)))
+  ;; \((_lcomp f g h) 10) ;; => (f (g (h 10))) => (f (g 7)) => (f 14) => 15"
+
+  (ldef _lcomp () (l x -> x))
+  (ldef _lcomp ((f :function)) f)
+  (ldef _lcomp ((f :function) (g :function))
+        `(lambda (&rest args) (funcall (quote ,f) (apply (quote ,g) args))))
+  (ldef _lcomp ((f :function) (g :function) (fn-list :rest))
+        (apply '_lcomp (_lcomp f g) fn-list))
+
+
+  (defmacro lcomp (&rest fns)
+    `(let ((fs (quote ,(seq-map
+                        (lambda (x) (eval `(quote (__ ,x))))
+                        fns))))
+       `(_lcomp ,@fs))
+    
+    
+    )
+
+    
+
+  ;; (cl-flet ((upcase-fn (lambda (s) (upcase s))))
+  ;;   (funcall (lcomp upcase-fn (l x -> x)) "hello"))
+
+  ;; (macroexpand '(lcomp upcase-fn (l x -> x)))
+
+
+
+
+
+  (provide 'l-function)
+  ;;; l-function.el ends here
+
+  ;; works
+  ;; (defmacro lcomp (&rest fns)
+  ;;   `(quote ,(seq-map
+  ;;             (lambda (x) (eval `(quote (__ ,x))))
+  ;;           fns)))
+  ```
+
+  This is `lib/utilities/l-function.el`, a sublibrary of `l.el` providing function composition utilities. Here's a summary:
+
+  ## Key Components
+
+  ### `_lcomp` - Function Composition (Right to Left)
+  A polymorphic function defined using `ldef` with pattern matching:
+
+  - **No args**: Returns identity function `(l x -> x)`
+  - **One function**: Returns the function unchanged
+  - **Two functions**: Composes them, creating a lambda that applies `g` first, then `f`
+  - **Three+ functions**: Recursively composes using the two-function case
+
+  The composition is **right-to-left** - the rightmost function is applied first.
+
+  ### `lcomp` - Macro Wrapper
+  A macro that wraps `_lcomp`, evaluating the functions at expansion time using the `__` syntax.
+
+  ## Examples from Documentation
+
+  ```elisp
+  ;; Basic: (add-one (double 5)) => 11
+  (ldef double (l x -> (* 2 x)))
+  (ldef add-one (l x -> (+ 1 x)))
+  (ldef composed (_lcomp add-one double))
+  (composed 5) ;; => 11
+
+  ;; String processing
+  (ldef trim-and-upper (_lcomp 'string-upcase 'string-trim))
+  (trim-and-upper "  hello  ") ;; => "HELLO"
+  ```
+
+  The file also contains some commented-out experimental code related to `cl-flet` and alternative macro implementations.
+
+Claude Code> read l-main
+<shell-maker-end-of-prompt>
+▶  completed   read  Read lib/l-main.el
+
+  ```
+  Reading file failed: Cannot read properties of undefined (reading 'indexOf')
+  ```
+
+  Let me find the correct path for l-main:
+
+▶  completed   search  Find `**/l-main.el`
+
+  /Users/laura/personal/l-el/lib/core/l-main.el
+
+▶  completed   read  Read lib/core/l-main.el
+
+  ```
+  ;;; package --- Summary ;;; -*- lexical-binding: t; -*-
+  ;;; l-main.el --- Modern  programming utilities for Emacs Lisp
+
+  ;; Copyright (C) 2025 Laura Viglioni
+
+  ;; This file is not part of GNU Emacs.
+
+  ;; This program is free software: you can redistribute it and/or modify
+  ;; it under the terms of the GNU General Public License as published by
+  ;; the Free Software Foundation, either version 3 of the License, or
+  ;; (at your option) any later version.
+
+  ;; This program is distributed in the hope that it will be useful,
+  ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ;; GNU General Public License for more details.
+
+  ;; You should have received a copy of the GNU General Public License
+  ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  ;;; Commentary:
+
+  ;; l.el provides a modern functional programming approach to writing
+  ;; Emacs Lisp, drawing inspiration from Common Lisp, Haskell and Elixir.
+  ;;
+  ;; This library introduces currying, partial application, pattern matching,
+  ;; and placeholder substitution utilities that make Emacs Lisp more expressive
+  ;; and closer to modern functional programming languages.
+  ;; 
+  ;; Key features:
+  ;; - Automatic currying with `ldef'
+  ;; - Pattern matching with `ldef'
+  ;; - Type matching with `ldef'
+  ;; - Partial application with `lpartial'
+  ;; - Placeholder substitution with `__'
+  ;; - Custom syntax `with-l'
+  ;; - Optional syntax transformation via `l-syntax'
+  ;;
+  ;; Example usage:
+  ;;
+  ;;   (ldef add3 (x y z) (+ x y z))
+  ;;   (funcall (add3 1 2) 3) ; => 6
+  ;;
+  ;;   (ldef greet ((name "Alice")) "Hello, Alice!")
+  ;;   (ldef greet (name) (concat "Hi, " name "!"))
+  ;;   (greet "Alice") ; => "Hello, Alice!"
+  ;;   (greet "Bob")   ; => "Hi, Bob!"
+  ;;
+  ;;   (with-l
+  ;;     ((add3 1) 2 3)) ; => 6
+  ;;
+  ;;   (__ (+ __ (* __ 2)) 5) ; => 15
+  ;;
+  ;;   (funcall (lpartial '+ 10) 5) ; => 15
+
+  ;;; Code:
+
+  (require 'cl-lib)
+  (require 'l-generic)
+
+  (defgroup l nil
+    "Modern functional programming utilities for Emacs Lisp."
+    :group 'lisp
+    :prefix "l-"
+    :link '(url-link "https://github.com/viglioni/l-el"))
+
+  ;;;;;;;;;
+  ;; API ;;
+  ;;;;;;;;;
+
+  (defun lpartial (fn &rest init-args)
+    "Return a partially applied function with FN and INIT-ARGS.
+
+  Creates a new function that, when called, applies FN to the
+  combination of INIT-ARGS (provided now) and any additional
+  arguments (provided later).
+
+  Examples:
+    (funcall (lpartial \\='+ 5) 3)     ;; => 8
+    (funcall (lpartial \\='* 2 3) 4)   ;; => 24
+    (funcall (lpartial \\='concat \"Hello, \") \"World!\")
+    ;; => \"Hello, World!\"
+
+  FN can be a function symbol, lambda expression, or any callable.
+  INIT-ARGS are the initial arguments to partially apply to FN."
+    (lambda (&rest args)
+      (apply fn (append init-args args))))
+
+  (defmacro ldef (name args &rest body)
+    "Define autocurried functions with pattern matching support.
+
+  Creates a function NAME that automatically curries when called with fewer
+  arguments and supports pattern matching on arguments.
+
+  ARGS is a list of parameter patterns supporting:
+  - Regular parameters: arg
+  - Wildcards: _ignore, _var (bind but conventionally ignore)
+  - Type matches: (arg :integer), (arg :string), etc.
+  - Value matches: (arg \"specific-value\"), (arg 42), etc.
+
+  Methods are ordered by specificity (most specific first):
+  1. Value matches (1000 points each)
+  2. Type matches (100 points each)
+  3. Wildcards (1 point each)
+
+  PATTERN MATCHING:
+  Arguments can be specified as either symbols or lists for pattern matching.
+  - Symbol: x - matches any value, binds to x
+  - Wildcard: _ignore - matches any value, binds but conventionally ignored
+  - Type match: (x :integer) - matches only when x satisfies integerp
+  - Value match: (x \"value\") - matches only when x equals \"value\"
+
+  Pattern matching examples:
+    (ldef fib ((n 0)) 0)                    ;; matches when n = 0
+    (ldef fib ((n 1)) 1)                    ;; matches when n = 1
+    (ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
+
+    (ldef greet ((name \"Alice\")) \"Hello, Alice!\")  ;; matches \"Alice\"
+    (ldef greet (name) (concat \"Hi, \" name \"!\"))   ;; general case
+
+    (ldef calc ((op '+) x y) (+ x y))       ;; matches when op = '+
+    (ldef calc ((op '*) x y) (* x y))       ;; matches when op = '*
+    (ldef calc (_op _x _y) (error \"Unknown operation\"))  ;; fallback
+
+  CURRYING:
+  Functions defined with ldef automatically curry when called
+  with fewer arguments.
+
+  Currying examples:
+    (ldef add3 (x y z) (+ x y z))
+    (add3 1 2 3)        ;; => 6 (full application)
+    (funcall (add3 1) 2 3)  ;; => 6 (partial application)
+    (funcall (funcall (add3 1) 2) 3)  ;; => 6 (chained partial)
+
+  NAME is the function name to define.
+  ARGS is a list of parameter patterns.
+  BODY is the function body to execute when pattern matches and fully applied."
+    
+    `(l-generic ,name ,args ,@body))
+
+  (defmacro with-l (&rest body)
+    "Transform expressions to support curried function call syntax.
+
+  Enables the use of ((fn args) more-args) syntax within the macro body,
+  transforming such expressions into proper funcall forms.
+  This allows for more natural curried function composition and chaining.
+
+  The transformation converts:
+    ((fn arg1) arg2 arg3)  =>  (funcall (fn arg1) arg2 arg3)
+    (((fn arg1) arg2) arg3)  =>  (funcall (funcall (fn arg1) arg2) arg3)
+
+  Examples:
+    (with-l ((add3 1) 2 3))     ;; => 6
+    (with-l (((add3 1) 2) 3))   ;; => 6
+    (with-l (+ ((add3 1) 2 3) ((multiply3 2) 3 4)))  ;; => 30
+
+  BODY contains the expressions to transform.
+  Regular function calls and other expressions are left unchanged."
+    (let ((grouped-body (l--group-doc-expressions body)))
+      `(progn ,@(mapcar #'l--transform-curry-calls grouped-body))))
+
+  (defmacro l (&rest expr)
+    "Lambda macro for creating functions with arrow syntax.
+
+  This macro provides a more concise way to create lambda functions
+  using arrow syntax inspired by other functional programming languages.
+  The arrow `->` separates the parameter list from the function body.
+
+  EXPR is a list of expressions where `->` acts as a separator between
+  the parameter list and the function body.
+
+  Syntax:
+    (l param1 param2 ... -> body-expr1 body-expr2 ...)
+
+  This is equivalent to:
+    (lambda (param1 param2 ...) body-expr1 body-expr2 ...)
+
+  Examples:
+    (l x y -> (+ x y))
+    ;; Equivalent to: (lambda (x y) (+ x y))
+
+    (l x -> (* x x))
+    ;; Equivalent to: (lambda (x) (* x x))
+
+    (l x y -> (message \"Adding %s and %s\" x y) (+ x y))
+    ;; Equivalent to: (lambda (x y) (message \"Adding %s and %s\" x y) (+ x y))
+
+    (funcall (l x -> (* x 2)) 5)
+    ;; => 10
+
+    (mapcar (l x -> (+ x 1)) '(1 2 3))
+    ;; => (2 3 4)
+
+  The arrow `->` must be present in the expression list, otherwise
+  the macro will not work correctly."
+    (let* ((pos (cl-position '-> expr))
+           (args (cl-subseq expr 0 pos))
+           (body (cl-subseq expr (1+ pos)))
+           )
+      `(lambda ,args ,@body)))
+
+  (defmacro __ (block &optional arg)
+    "Substitute all occurrences of \\=`__\\=' in BLOCK with ARG.
+
+  This macro provides a convenient way to create expressions
+  with placeholder substitution.
+  Every occurrence of the symbol \\=`__\\=' in BLOCK
+  will be replaced with ARG before evaluation.
+
+  BLOCK is the expression containing placeholder symbols \\=`__\\='.
+  ARG is the value that will replace all \\=`__\\=' placeholders.
+  If not provided, returns a function that expects one argument.
+
+  Example:
+    (__ (+ __ (* __ 2)) 5)
+    ;; Expands to: (+ 5 (* 5 2))
+    ;; Evaluates to: 15
+
+    (__ (+ __ (* __ 2)))
+    ;; Returns a function that expects one argument
+    ;; (funcall (__ (+ __ (* __ 2))) 5) evaluates to: 15
+
+    (__ (list __ (car __) (cdr __)) \\='(1 2 3))
+    ;; Expands to: (list (1 2 3) (car (1 2 3)) (cdr (1 2 3)))
+    ;; Evaluates to: ((1 2 3) 1 (2 3))
+
+  The substitution is recursive, so nested lists and complex
+  expressions are handled correctly."
+    (cl-labels ((substitute-__ (expr replacement)
+                  (cond
+                   ((eq expr '__) replacement)
+                   ((listp expr) (mapcar (lambda (x) (substitute-__ x replacement)) expr))
+                   (t expr)))
+                (has-__ (expr)
+                  (cond
+                   ((eq expr '__) t)
+                   ((listp expr) (cl-some #'has-__ expr))
+                   (t nil))))
+      (if (has-__ block)
+          (if arg
+              (substitute-__ block arg)
+            `(lambda (x) ,(substitute-__ block 'x)))
+        block)))
+
+  (defmacro @doc (docstring &rest ldef-exprs)
+    "Add DOCSTRING to function-name defined in LDEF-EXPRS defined with `ldef'."
+    `(progn (l-generic-doc ',(cadar ldef-exprs) ,docstring)
+            ,@ldef-exprs))
+
+
+  ;;;;;;;;;;;;;;;;;;;;;;;
+  ;; Private functions ;;
+  ;;;;;;;;;;;;;;;;;;;;;;;
+
+  (defun l--transform-curry-calls (expr)
+    "Transform curry call expressions recursively.
+
+  Internal function used by with-l to transform expressions
+  containing curried function calls.
+  Identifies patterns like ((fn args) more-args) and
+  converts them to (funcall (fn args) more-args).
+
+  The transformation rules:
+  - ((fn args) more-args) becomes (funcall (fn args) more-args)
+  - Lambda expressions are preserved as-is
+  - Special forms (ldef, defun, etc.) are preserved as-is
+  - Regular expressions are recursively processed
+  - Atoms are left unchanged
+
+  EXPR is the expression to transform, can be an atom, list, or nested structure.
+  Returns the transformed expression with curried calls
+  converted to funcall forms."
+    (cond
+     ;; Don't transform special forms
+     ((and (consp expr)
+           (symbolp (car expr))
+           (memq (car expr) '(ldef defun defmacro defvar defcustom
+                             lambda quote function let let* progn
+                             if when unless cond case)))
+      ;; For special forms, only recursively transform their body parts where appropriate
+      (cond
+        ;; quote and function: return as-is, their contents are data not code
+        ((memq (car expr) '(quote function))
+         expr)
+        ((memq (car expr) '(ldef defun defmacro))
+         ;; For function definitions, transform the body but not the signature
+         (if (>= (length expr) 4)
+             `(,(car expr) ,(cadr expr) ,(caddr expr)
+               ,@(mapcar #'l--transform-curry-calls (cdddr expr)))
+           expr))
+        ((memq (car expr) '(let let*))
+         ;; For let forms, transform bindings and body
+         `(,(car expr)
+           ,(mapcar (lambda (binding)
+                      (if (consp binding)
+                          `(,(car binding) ,(l--transform-curry-calls (cadr binding)))
+                        binding))
+                    (cadr expr))
+           ,@(mapcar #'l--transform-curry-calls (cddr expr))))
+        (t
+         ;; For other special forms, transform arguments recursively
+         `(,(car expr) ,@(mapcar #'l--transform-curry-calls (cdr expr))))))
+     ((and (consp expr)
+           (consp (car expr))
+           (not (eq (caar expr) 'lambda)))
+      ;; Transform ((fn args) more-args) to (funcall (fn args) more-args)
+      `(funcall ,(l--transform-curry-calls (car expr)) ,@(mapcar #'l--transform-curry-calls (cdr expr))))
+     ((consp expr)
+      (mapcar #'l--transform-curry-calls expr))
+     (t expr)))
+
+  (defun l--group-doc-expressions (body)
+    "Group @doc expressions with their following expression.
+  Transforms: @doc \"...\" (ldef ...) -> (@doc \"...\" (ldef ...))
+  BODY is a list of expressions."
+    (let ((result '())
+          (remaining body))
+      
+      (while remaining
+        (let ((current (car remaining)))
+          (if (eq current '@doc)
+              ;; Found @doc - group with next two expressions (docstring + ldef)
+              (if (>= (length remaining) 3)
+                  (progn
+                    (push `(@doc ,(cadr remaining) ,(caddr remaining)) result)
+                    (setq remaining (cdddr remaining)))
+                ;; Not enough expressions after @doc - treat as regular expression
+                (progn
+                  (push current result)
+                  (setq remaining (cdr remaining))))
+            ;; Regular expression
+            (progn
+              (push current result)
+              (setq remaining (cdr remaining))))))
+      
+      (nreverse result)))
+
+  (provide 'l-main)
+  ;;; l-main.el ends here
+  ```
+
+  This is `lib/core/l-main.el`, the core library for `l.el` - a modern functional programming library for Emacs Lisp inspired by Common Lisp, Haskell, and Elixir.
+
+  ## Key Features & API
+
+  ### `lpartial` - Partial Application
+  ```elisp
+  (funcall (lpartial '+ 5) 3)  ;; => 8
+  (funcall (lpartial '* 2 3) 4) ;; => 24
+  ```
+
+  ### `ldef` - Autocurried Functions with Pattern Matching
+  Defines functions that:
+  1. **Auto-curry** when called with fewer args
+  2. Support **pattern matching** on arguments
+
+  **Pattern types:**
+  - Regular params: `x`
+  - Wildcards: `_ignore`, `_var`
+  - Type matches: `(arg :integer)`, `(arg :string)`
+  - Value matches: `(arg "value")`, `(arg 42)`
+
+  ```elisp
+  ;; Currying
+  (ldef add3 (x y z) (+ x y z))
+  (funcall (add3 1) 2 3) ;; => 6
+
+  ;; Pattern matching
+  (ldef fib ((n 0)) 0)
+  (ldef fib ((n 1)) 1)
+  (ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))
+  ```
+
+  ### `with-l` - Curried Call Syntax
+  Transforms `((fn arg1) arg2)` into `(funcall (fn arg1) arg2)`:
+  ```elisp
+  (with-l ((add3 1) 2 3)) ;; => 6
+  ```
+
+  ### `l` - Lambda Arrow Syntax
+  ```elisp
+  (l x y -> (+ x y))  ;; => (lambda (x y) (+ x y))
+  (mapcar (l x -> (+ x 1)) '(1 2 3)) ;; => (2 3 4)
+  ```
+
+  ### `__` - Placeholder Substitution
+  ```elisp
+  (__ (+ __ (* __ 2)) 
+
+
