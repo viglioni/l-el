@@ -1,0 +1,463 @@
+#+title: l.el API Reference
+#+options: toc:t
+#+startup: show2levels
+
+* Table of Contents
+:PROPERTIES:
+:TOC:      :include all :depth 2
+:END:
+:CONTENTS:
+- [[#table-of-contents][Table of Contents]]
+- [[#variables][Variables]]
+  - [[#l-syntax][l-syntax]]
+- [[#functions][Functions]]
+  - [[#__-block-optional-arg][__ (block &optional arg)]]
+  - [[#doc-docstring-rest-ldef-exprs][@doc (docstring &rest ldef-exprs)]]
+  - [[#l-rest-expr][l (&rest expr)]]
+  - [[#l-generic-cleanup-name][l-generic-cleanup (name)]]
+  - [[#l-mode][l-mode]]
+  - [[#l-require-feature-optional-filename-noerror][l-require (feature &optional filename noerror)]]
+  - [[#l-syntax-advices][l-syntax-advices]]
+  - [[#l-syntax-remove-advices][l-syntax-remove-advices]]
+  - [[#ldef-name-args-rest-body][ldef (name args &rest body)]]
+  - [[#lpartial-fn-rest-init-args][lpartial (fn &rest init-args)]]
+  - [[#with-l-rest-body][with-l (&rest body)]]
+- [[#utilities][Utilities]]
+  - [[#lcomp-rest-functions][lcomp (&rest functions)]]
+- [[#type-system][Type System]]
+:END:
+
+* Variables
+
+** =l-syntax=
+
+Controls whether l syntax transformations are applied during evaluation.
+
+When set to =t= globally, l syntax transformations will be applied to all elisp evaluation operations without requiring file-local variable declarations in individual files.
+
+When set to =nil= (the default), l syntax transformations will only be applied to files that explicitly declare =l-syntax= as a file-local variable.
+
+* Functions and macros
+
+** =__ (block &optional arg)=
+
+Create concise expressions with placeholder substitution, avoiding lambda boilerplate.
+
+When called with one argument (just BLOCK), returns a function. When called with two arguments, evaluates immediately with ARG substituted for =__=.
+
+*** Examples:
+#+begin_src emacs-lisp
+;; Returns a function - great for avoiding lambda boilerplate
+(mapcar (__ (1+ __)) '(1 2 3))           ;; => (2 3 4)
+(mapcar (__ (concat "Hello, " __)) '("Alice" "Bob"))  ;; => ("Hello, Alice" "Hello, Bob")
+(seq-filter (__ (> __ 5)) '(1 8 3 9 2))  ;; => (8 9)
+
+;; Equivalent to writing lambdas:
+(mapcar (lambda (x) (1+ x)) '(1 2 3))
+(mapcar (lambda (x) (concat "Hello, " x)) '("Alice" "Bob"))
+
+;; Immediate evaluation with two arguments
+(__ (1+ __) 5)           ;; => 6
+(__ (upcase __) "hello") ;; => "HELLO"
+
+;; Works with any expression
+(__ (car __) '(a b c))   ;; => a
+(__ (nth 2 __) '(a b c)) ;; => c
+
+;; Multiple __ in same expression (edge case)
+(__ (+ __ __) 5)         ;; => 10
+(__ (list __ __) 'x)     ;; => (x x)
+#+end_src
+
+** =@doc (docstring &rest ldef-exprs)=
+
+Add documentation to functions defined with =ldef=.
+
+This macro provides Elixir-style documentation annotations for =ldef= functions. The docstring is associated with the function and can be retrieved later.
+
+*** Examples:
+#+begin_src emacs-lisp
+@doc "Calculate the nth Fibonacci number.
+This implementation uses pattern matching for base cases."
+(ldef fib ((n 0)) 0)
+(ldef fib ((n 1)) 1)
+(ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))
+
+@doc "Add two numbers together."
+(ldef add (x y) (+ x y))
+#+end_src
+
+** =l (&rest expr)=
+
+Lambda macro for creating functions with arrow syntax.
+
+This macro provides a concise way to create lambda functions using arrow syntax inspired by functional programming languages. The arrow =->= separates the parameter list from the function body.
+
+*** Syntax:
+#+begin_src emacs-lisp
+(l param1 param2 ... -> body-expr1 body-expr2 ...)
+;; Equivalent to:
+(lambda (param1 param2 ...) body-expr1 body-expr2 ...)
+#+end_src
+
+*** Examples:
+#+begin_src emacs-lisp
+;; Single parameter
+(l x -> (* x x))
+;; => (lambda (x) (* x x))
+
+;; Multiple parameters
+(l x y -> (+ x y))
+;; => (lambda (x y) (+ x y))
+
+;; Multiple body expressions
+(l x y -> (message "Adding %s and %s" x y) (+ x y))
+;; => (lambda (x y) (message "Adding %s and %s" x y) (+ x y))
+
+;; Usage with funcall
+(funcall (l x -> (* x 2)) 5)  ;; => 10
+
+;; Usage with mapcar
+(mapcar (l x -> (+ x 1)) '(1 2 3))  ;; => (2 3 4)
+
+;; No parameters
+(l -> 42)  ;; => (lambda () 42)
+#+end_src
+
+Note: The arrow =->= must be present in the expression.
+
+** =l-generic-cleanup (name)=
+
+Remove generic function NAME and all its methods.
+
+This function completely removes a generic function from the l-generic registry and unbinds the function symbol, effectively deleting the function and all its associated method definitions.
+
+This is useful for:
+- Cleaning up during development when redefining generic functions
+- Removing functions that are no longer needed
+- Resolving conflicts when function names are reused
+
+*** Examples:
+#+begin_src emacs-lisp
+;; Define a generic function
+(ldef my-func (x) (+ x 1))
+
+;; Remove the function completely
+(l-generic-cleanup 'my-func)
+
+;; Function is no longer available
+(my-func 5)  ;; ERROR: void-function my-func
+#+end_src
+
+Note: This operation cannot be undone. All method definitions are permanently removed.
+
+** =l-mode=
+
+Enhanced major mode extending =emacs-lisp-mode= with specialized features for l.el.
+
+This major mode provides:
+- Enhanced syntax highlighting for =@doc= annotations and their docstrings
+- Syntax highlighting for s-expressions within docstrings
+- Special highlighting for escaped strings and backslashes in docstrings
+- Automatic activation when =l-syntax= is enabled (via =l-syntax-advices=)
+- Full Emacs Lisp compatibility
+
+The mode treats strings following =@doc= as documentation strings (=font-lock-doc-face=) rather than regular strings.
+
+*** Examples:
+#+begin_src emacs-lisp
+;; Manual activation
+(l-mode)
+
+;; Automatic activation via use-package
+(use-package l
+  :mode ("\\.el\\'" . l-mode))
+
+;; Auto-enabled when l-syntax is active
+(setq l-syntax t)
+(l-syntax-advices)  ;; l-mode activates automatically in .el files
+#+end_src
+
+** =l-require (feature &optional filename noerror)=
+
+Enhanced library loading with automatic l-syntax processing.
+
+Similar to =require= but with enhanced support for files that declare l-syntax support. When loading files with l-syntax enabled, automatically processes l.el syntax transformations.
+
+FEATURE is the feature symbol to require.
+FILENAME is the optional file name to load.
+NOERROR when non-nil, don't signal an error if the file is not found.
+
+*** Examples:
+#+begin_src emacs-lisp
+;; Load a library with l-syntax support
+(l-require 'my-l-library)
+
+;; Load with specific filename
+(l-require 'utilities "my-utils.el")
+
+;; Load without error if not found
+(l-require 'optional-feature nil t)
+#+end_src
+
+** =l-syntax-advices=
+
+Add advice to evaluation functions for l syntax support.
+
+This function adds around advice to =eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and =load= to enable l syntax processing.
+
+** =l-syntax-remove-advices=
+
+Remove advice from evaluation functions for l syntax support.
+
+This function removes around advice from =eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and =load= that was added by =l-syntax-advices=.
+
+** =ldef (name args &rest body)=
+
+Define autocurried functions with pattern matching support.
+
+Creates a function NAME that automatically curries when called with fewer arguments and supports pattern matching on arguments. Multiple definitions with the same NAME but different patterns create a generic function with multiple methods.
+
+*** Parameter Patterns
+
+ARGS is a list of parameter patterns supporting:
+- Regular parameters: =arg= - matches any value, binds to =arg=
+- Wildcards: =_= or =_name= - matches any value, conventionally ignored
+- Type matches: =(arg :type)= - matches when =arg= satisfies the type predicate
+- Value matches: =(arg value)= - matches when =arg= equals =value=
+- Rest parameter: =(arg :rest)= - collects remaining arguments as a list (must be last)
+
+*** Method Specificity
+
+When multiple methods match, they are ordered by specificity (most specific first):
+1. Value matches: 1000 points each
+2. Type matches: 100 points each
+3. Wildcards: 1 point each
+4. Regular parameters: 0 points
+
+The method with the highest total specificity is called first.
+
+*** Pattern Matching Examples
+
+**** Basic value matching:
+#+begin_src emacs-lisp
+(ldef fib ((n 0)) 0)                    ;; matches when n = 0
+(ldef fib ((n 1)) 1)                    ;; matches when n = 1
+(ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
+
+(fib 10)  ;; => 55
+#+end_src
+
+**** String and symbol matching:
+#+begin_src emacs-lisp
+(ldef greet ((name "Alice")) "Hello, Alice!")  ;; matches "Alice"
+(ldef greet ((name "Bob")) "Hey, Bob!")        ;; matches "Bob"
+(ldef greet (name) (concat "Hi, " name "!"))   ;; general case
+
+(greet "Alice")  ;; => "Hello, Alice!"
+(greet "Bob")    ;; => "Hey, Bob!"
+(greet "Carol")  ;; => "Hi, Carol!"
+#+end_src
+
+**** Type matching:
+#+begin_src emacs-lisp
+(ldef process ((x :integer)) (* x 2))
+(ldef process ((x :string)) (upcase x))
+(ldef process ((x :list)) (length x))
+(ldef process (x) "unknown type")
+
+(process 5)           ;; => 10
+(process "hello")     ;; => "HELLO"
+(process '(1 2 3))    ;; => 3
+(process :keyword)    ;; => "unknown type"
+#+end_src
+
+**** Multiple parameters with patterns:
+#+begin_src emacs-lisp
+(ldef calc ((op '+) x y) (+ x y))
+(ldef calc ((op '-) x y) (- x y))
+(ldef calc ((op '*) x y) (* x y))
+(ldef calc (_op _x _y) (error "Unknown operation"))
+
+(calc '+ 10 5)  ;; => 15
+(calc '- 10 5)  ;; => 5
+(calc '/ 10 5)  ;; => error
+#+end_src
+
+**** Complex data structure matching:
+#+begin_src emacs-lisp
+;; Alists
+(ldef handle-config ((cfg '((debug . t)))) "debug mode")
+(ldef handle-config (cfg) "normal mode")
+
+;; Plists
+(ldef handle-opts ((opts '(:verbose t))) "verbose")
+(ldef handle-opts (opts) "quiet")
+
+;; Vectors
+(ldef process-vec ((v [])) "empty")
+(ldef process-vec ((v [1 2 3])) "one-two-three")
+(ldef process-vec (v) "other")
+
+;; Nested structures
+(ldef handle ((data '(:type list :items ((a . b))))) "matched")
+#+end_src
+
+**** Wildcards:
+#+begin_src emacs-lisp
+(ldef ignore-first (_ x) x)
+(ldef ignore-middle (a _ _ d) (list a d))
+
+(ignore-first 1 2)        ;; => 2
+(ignore-middle 1 2 3 4)   ;; => (1 4)
+#+end_src
+
+*** Rest Parameters
+
+The =:rest= type collects all remaining arguments into a list. It must be the last parameter.
+
+#+begin_src emacs-lisp
+(ldef sum ((nums :rest)) (apply '+ nums))
+
+(sum 1 2 3 4 5)  ;; => 15
+
+(ldef format-with-prefix ((prefix :string) (args :rest))
+      (apply 'format (concat prefix ": %s") args))
+
+(format-with-prefix "Error" "file not found")  ;; => "Error: file not found"
+#+end_src
+
+*** Currying
+
+Functions defined with =ldef= automatically curry when called with fewer arguments than defined.
+
+#+begin_src emacs-lisp
+(ldef add3 (x y z) (+ x y z))
+
+;; Full application
+(add3 1 2 3)  ;; => 6
+
+;; Partial application returns a function
+(funcall (add3 1) 2 3)  ;; => 6
+(funcall (add3 1 2) 3)  ;; => 6
+
+;; Chained partial application
+(funcall (funcall (add3 1) 2) 3)  ;; => 6
+
+;; With l-syntax enabled or inside with-l:
+((add3 1) 2 3)      ;; => 6
+(((add3 1) 2) 3)    ;; => 6
+#+end_src
+
+*** Error Handling
+
+When no pattern matches the provided arguments, an error is raised:
+
+#+begin_src emacs-lisp
+(ldef only-integers ((x :integer)) x)
+
+(only-integers 5)       ;; => 5
+(only-integers "hello") ;; => error: No matching method
+#+end_src
+
+*** Notes
+
+- The =&rest= syntax from regular Emacs Lisp is NOT supported. Use =(arg :rest)= instead.
+- Multiple =:rest= parameters are not allowed.
+- =:rest= must be the last parameter.
+- Use =l-generic-cleanup= to remove a function and all its methods.
+
+** =lpartial (fn &rest init-args)=
+
+Return a partially applied function with FN and INIT-ARGS.
+
+Creates a new function that, when called, applies FN to the combination of INIT-ARGS (provided now) and any additional arguments (provided later).
+
+*** Examples:
+#+begin_src emacs-lisp
+  (funcall (lpartial '+ 5) 3)     ;; => 8
+  (funcall (lpartial '* 2 3) 4)   ;; => 24
+  (funcall (lpartial 'concat "Hello, ") "World!")  ;; => "Hello, World!"
+#+end_src
+
+** =with-l (&rest body)=
+
+Transform expressions to support curried function call syntax.
+
+Enables the use of =((fn args) more-args)= syntax within the macro body, transforming such expressions into proper funcall forms. This allows for more natural curried function composition and chaining.
+
+The transformation converts:
+- =((fn arg1) arg2 arg3)= => =(funcall (fn arg1) arg2 arg3)=
+- =(((fn arg1) arg2) arg3)= => =(funcall (funcall (fn arg1) arg2) arg3)=
+
+Macros inside =with-l= are expanded before transformation, so macros like =lcomp= work correctly.
+
+*** Examples:
+#+begin_src emacs-lisp
+(with-l ((add3 1) 2 3))     ;; => 6
+(with-l (((add3 1) 2) 3))   ;; => 6
+(with-l (+ ((add3 1) 2 3) ((multiply3 2) 3 4)))  ;; => 30
+
+;; Works with lcomp and other macros
+(with-l ((lcomp (+ __ 1) (* __ 2)) 5))  ;; => 11
+
+;; Multiple expressions
+(with-l
+  (ldef my-add (x y) (+ x y))
+  ((my-add 1) 2))  ;; => 3
+#+end_src
+
+Note: Regular function calls and special forms (=let=, =if=, =defun=, etc.) are left unchanged.
+
+** =lcomp (&rest functions)=
+
+Compose functions for elegant data transformation.
+
+Returns a new function that applies FUNCTIONS in right-to-left order (mathematical composition). The rightmost function can accept multiple arguments, while subsequent functions must accept a single argument.
+
+Each argument is automatically wrapped with =__=, so you can use the placeholder syntax directly.
+
+*** Examples:
+#+begin_src emacs-lisp
+;; Basic composition with lambdas
+(ldef double (l x -> (* 2 x)))
+(ldef add-one (l x -> (+ 1 x)))
+((lcomp add-one double) 5)  ;; => 11 (double first, then add-one)
+
+;; Using __ placeholder syntax
+((lcomp (+ __ 1) (* __ 2)) 5)  ;; => 11
+
+;; With with-l for cleaner syntax
+(with-l ((lcomp (+ __ 1) (* __ 2)) 5))  ;; => 11
+
+;; Multiple function composition
+(ldef negate (l x -> (- x)))
+(ldef square (l x -> (* x x)))
+((lcomp negate square add-one double) 3)  ;; => -49
+
+;; With built-in functions
+((lcomp 'car 'reverse) '(1 2 3 4))  ;; => 4
+
+;; With local bindings
+(let ((square (lambda (x) (* x x))))
+  (with-l ((lcomp (+ __ 1) square) 3)))  ;; => 10
+#+end_src
+
+* Type System
+
+The library supports the following type predicates for pattern matching:
+
+- =:buffer= - bufferp
+- =:callable= - function or subroutine
+- =:cons= - consp
+- =:float= - floatp
+- =:function= - functionp
+- =:hash-table= - hash-table-p
+- =:integer= - integerp
+- =:list= - listp
+- =:null= - null
+- =:number= - numberp
+- =:sequence= - sequencep
+- =:string= - stringp
+- =:symbol= - symbolp
+- =:vector= - vectorp
