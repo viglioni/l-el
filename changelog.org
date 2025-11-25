@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+** Added
+- Custom exceptions in =l-exception.el=
+- Added =lpipe= function in =l-functions=
+  
 * 0.4.0 - 2025-11-23
 
 ** Added
