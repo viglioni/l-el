@@ -33,6 +33,7 @@
 (require 'cl-lib)
 (require 'l-generic-type-predicates)
 (require 'l-generic-state)
+(require 'l-exception)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; l-generic dispatcher ;;
@@ -284,20 +285,20 @@ Examples:
                      collect `((= arity ,arity)
                                (cond
                                 ,@(mapcar #'l-generic--generate-method-clause arity-methods)
-                                (t (error "PatternMatch error in '%s': couldn't match %S"
-                                          ',name args)))))
+                                (t (l-raise 'pattern-match :function-name ',name :args args)))))
           ;; Handle rest methods for args >= min-rest-arity
           ,@(when rest-methods
               `(((>= arity ,min-rest-arity)
                  (cond
                   ,@(mapcar #'l-generic--generate-method-clause rest-methods)
-                  (t (error "PatternMatch error in '%s': couldn't match %S"
-                            ',name args))))))
+                  (t (l-raise 'pattern-match :function-name ',name :args args))))))
           ;; Currying case - only for insufficient args
           ((< arity ,min-arity) (apply #'lpartial #',name args))
           ;; Too many args - error
-          (t (error "PatternMatch error in '%s': no method for %d arguments.  Available: %S"
-                    ',name arity ',(mapcar #'car methods-by-arity))))))))
+          (t (l-raise 'arity-error
+                      :function-name ',name
+                      :expected ',(mapcar #'car methods-by-arity)
+                      :actual arity)))))))
 
 (cl-defmethod l-generic--doc ((fname symbol))
   "Build documentation for FNAME."
