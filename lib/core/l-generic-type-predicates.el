@@ -58,9 +58,23 @@ Examples:
              (cl-every predicate obj)
            (l--raise-unknown-type-predicate type-keyword "list_of validation")))))
 
+(defun l--list-of-instances-p (obj type-name)
+  "Return t if OBJ is a list where every element is an instance of TYPE-NAME.
+
+TYPE-NAME should be a struct or class type name (not a keyword).
+
+Examples:
+  (cl-defstruct point x y)
+  (l--list-of-instances-p (list (make-point :x 1 :y 2)) 'point) ; => t
+  (l--list-of-instances-p '(1 2 3) 'point)                       ; => nil
+  (l--list-of-instances-p '() 'point)                            ; => t (empty list)"
+  (and (listp obj)
+       (cl-every (lambda (elem) (cl-typep elem type-name)) obj)))
+
 (defvar l-generic-parameterized-type-predicates
-  '((:instance_of . cl-typep)
-    (:list_of     . l--list-of-p))
+  '((:instance_of        . cl-typep)
+    (:list_of            . l--list-of-p)
+    (:list_of_instances  . l--list-of-instances-p))
   "Type predicates that require an additional type argument.
 
 These predicates take both a value and a type specifier as arguments.
@@ -73,9 +87,14 @@ Available parameterized types:
   Example: (ldef process-point ((p :instance_of point)) ...)
 
 - :list_of - uses l--list-of-p to check if a value is a list where every
-  element matches a specific type.
+  element matches a specific type keyword.
   Usage: (arg :list_of :type-keyword)
   Example: (ldef sum-integers ((nums :list_of :integer)) ...)
+
+- :list_of_instances - uses l--list-of-instances-p to check if a value is
+  a list where every element is an instance of a specific struct/class type.
+  Usage: (arg :list_of_instances type-name)
+  Example: (ldef process-points ((pts :list_of_instances point)) ...)
 
 These are more specific than regular type predicates (which match any
 instance of a category) but less specific than value matches.")

@@ -11,9 +11,10 @@ All notable changes to this project will be documented in this file.
   - =:alist= =:plist= =:array= =:sequence= (=:seq=) =:bool-vector= (=:bvector=) =:char-table= (=:ctable=)
   - =:struct= =:object= =:record= =:instance= for cl-defstruct and EIEIO class instances
   - short aliases: =:buff= =:fn= =:int= =:nil= =:str=
-- parameterized type matching with =:instance_of= and =:list_of=
+- parameterized type matching with =:instance_of=, =:list_of=, and =:list_of_instances=
   - =:instance_of= - matches specific struct/class types: =(x :instance_of point)=
-  - =:list_of= - matches lists of specific type: =(nums :list_of :integer)=
+  - =:list_of= - matches lists of specific type keyword: =(nums :list_of :integer)=
+  - =:list_of_instances= - matches lists of specific instance type: =(pts :list_of_instances point)=
   - new specificity scoring system: value (1M) > parameterized type (10K) > regular type (100) > wildcard (1)
 - custom error types for better error handling:
   - =l-unknown-type-predicate-error= - invalid type predicates

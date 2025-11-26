@@ -481,7 +481,8 @@ The library supports the following type predicates for pattern matching:
 These types require an additional argument to specify the exact type to match:
 
 - =:instance_of= - cl-typep (matches specific struct or class type)
-- =:list_of= - l--list-of-p (matches list where every element matches a type)
+- =:list_of= - l--list-of-p (matches list where every element matches a type keyword)
+- =:list_of_instances= - l--list-of-instances-p (matches list where every element is an instance of a specific type)
 
 *** =:instance_of=
 
@@ -518,6 +519,24 @@ Examples:
 (ldef process-symbols ((syms :list_of :symbol))
   ;; Works with any type keyword from l-generic-type-predicates
   (length syms))
+#+end_src
+
+*** =:list_of_instances=
+
+Usage: =(param :list_of_instances type-name)=
+
+Examples:
+#+begin_src emacs-lisp
+(cl-defstruct point x y)
+(defclass shape () ((name :initarg :name)))
+
+(ldef process-points ((pts :list_of_instances point))
+  ;; Only matches lists where every element is a point struct
+  (mapcar (lambda (p) (+ (point-x p) (point-y p))) pts))
+
+(ldef draw-shapes ((shapes :list_of_instances shape))
+  ;; Only matches lists where every element is a shape instance
+  (mapcar (lambda (s) (oref s name)) shapes))
 #+end_src
 
 *** Specificity

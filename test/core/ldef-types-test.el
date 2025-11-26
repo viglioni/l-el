@@ -331,6 +331,56 @@
       (expect (list-processor '(1 "2" 3)) :to-equal "any list")
       (expect (list-processor "string") :to-equal "anything")))
 
+  (describe "list_of_instances type matcher (parameterized)"
+    (before-all
+      (cl-defstruct point-2d x y)
+      (cl-defstruct point-3d x y z)
+      (defclass shape ()
+        ((name :initarg :name)))
+
+      (ldef process-points-2d ((pts :list_of_instances point-2d))
+        (mapcar (lambda (p) (+ (point-2d-x p) (point-2d-y p))) pts))
+      (ldef process-points-2d (pts) "not a list of point-2d")
+
+      (ldef process-shapes ((shapes :list_of_instances shape))
+        (length shapes))
+      (ldef process-shapes (x) -1))
+
+    (test-it "matches list of struct instances"
+      (let ((pts (list (make-point-2d :x 1 :y 2)
+                       (make-point-2d :x 3 :y 4))))
+        (expect (process-points-2d pts) :to-equal '(3 7))))
+
+    (test-it "matches empty list"
+      (expect (process-points-2d '()) :to-equal '()))
+
+    (test-it "does not match list with wrong struct type"
+      (let ((pts (list (make-point-3d :x 1 :y 2 :z 3))))
+        (expect (process-points-2d pts) :to-equal "not a list of point-2d")))
+
+    (test-it "does not match list with mixed types"
+      (let ((pts (list (make-point-2d :x 1 :y 2) "not a point")))
+        (expect (process-points-2d pts) :to-equal "not a list of point-2d")))
+
+    (test-it "does not match non-list"
+      (expect (process-points-2d "string") :to-equal "not a list of point-2d")
+      (expect (process-points-2d 42) :to-equal "not a list of point-2d"))
+
+    (test-it "works with EIEIO classes"
+      (let ((shapes (list (make-instance 'shape :name "circle")
+                         (make-instance 'shape :name "square"))))
+        (expect (process-shapes shapes) :to-equal 2)))
+
+    (test-it "specificity: list_of_instances > list > wildcard"
+      (ldef shape-handler ((s :list_of_instances shape)) "list of shapes")
+      (ldef shape-handler ((s :list)) "any list")
+      (ldef shape-handler (x) "anything")
+
+      (let ((shapes (list (make-instance 'shape :name "circle"))))
+        (expect (shape-handler shapes) :to-equal "list of shapes")
+        (expect (shape-handler '(1 2 3)) :to-equal "any list")
+        (expect (shape-handler "string") :to-equal "anything"))))
+
   (describe "unknown type predicate errors"
     (test-it "raises l-unknown-type-predicate-error for unknown regular type"
       (expect (ldef bad-func ((x :invalid-type)) "never matches")
