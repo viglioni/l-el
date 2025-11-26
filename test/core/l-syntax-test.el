@@ -77,7 +77,11 @@
              (expect (assoc 'load l-syntax-remove-calls) :to-be-truthy)))
   (describe "l--eval-last-sexp-advice"
     (test-it "throws error when l-syntax is nil"
-             (let ((l-syntax nil))
+             ;; Set eval-expression-debug-on-error to nil to prevent Emacs 30's
+             ;; handler-bind from invoking the debugger, which would interrupt
+             ;; the test before buttercup can catch the error with :to-throw
+             (let ((l-syntax nil)
+                   (eval-expression-debug-on-error nil))
                (with-temp-buffer
                  (insert "((add 1) 2)")
                  (goto-char (point-max))
@@ -251,7 +255,11 @@
       (describe "@doc"
         (describe "when using `eval-last-sexp'"
           (test-it "throws error when l-syntax is nil"
-                   (let ((l-syntax nil))
+                   ;; Set eval-expression-debug-on-error to nil to prevent Emacs 30's
+                   ;; handler-bind from invoking the debugger, which would interrupt
+                   ;; the test before buttercup can catch the error with :to-throw
+                   (let ((l-syntax nil)
+                         (eval-expression-debug-on-error nil))
                      (with-temp-buffer
                        (insert "(progn\n@doc \"Adds two numbers\"\n(ldef add-doc-last (a b) (+ a b)))")
                        (goto-char (point-max))

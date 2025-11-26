@@ -6,9 +6,38 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        emacs-version: [28.2, 29.1]
+        include:
+          # Ubuntu - test all versions including 26.3
+          - os: ubuntu-latest
+            emacs-version: 26.3
+          - os: ubuntu-latest
+            emacs-version: 27.2
+          - os: ubuntu-latest
+            emacs-version: 28.2
+          - os: ubuntu-latest
+            emacs-version: 29.4
+          - os: ubuntu-latest
+            emacs-version: 30.1
+          # macOS Intel - test 26.3+
+          - os: macos-13
+            emacs-version: 26.3
+          - os: macos-13
+            emacs-version: 27.2
+          - os: macos-13
+            emacs-version: 28.2
+          - os: macos-13
+            emacs-version: 29.4
+          - os: macos-13
+            emacs-version: 30.1
+          # macOS ARM64 - only 28.1+ supported
+          - os: macos-latest
+            emacs-version: 28.2
+          - os: macos-latest
+            emacs-version: 29.4
+          - os: macos-latest
+            emacs-version: 30.1
 
     steps:
       - uses: actions/checkout@v2
@@ -16,6 +45,17 @@ jobs:
       - uses: purcell/setup-emacs@master
         with:
           version: ${{ matrix.emacs-version }}
+
+      - name: Cache Cask packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cask
+            .cask
+          key: ${{ runner.os }}-cask-${{ matrix.emacs-version }}-${{ hashFiles('**/Cask') }}
+          restore-keys: |
+            ${{ runner.os }}-cask-${{ matrix.emacs-version }}-
+            ${{ runner.os }}-cask-
 
       - name: Install Cask
         run: |

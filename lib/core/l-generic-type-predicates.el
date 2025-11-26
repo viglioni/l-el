@@ -36,6 +36,19 @@ An alist is a list where every element is a cons cell."
   (and (listp obj)
        (cl-every #'consp obj)))
 
+(defun l--plistp (obj)
+  "Return t if OBJ is a plist (property list).
+A plist is a list with an even number of elements.
+
+This is a compatibility wrapper for `plistp', which was added in Emacs 29.
+Uses the built-in `plistp' if available, otherwise provides a fallback
+implementation for Emacs < 29."
+  (if (fboundp 'plistp)
+      (plistp obj)
+    ;; Fallback for Emacs < 29
+    (and (listp obj)
+         (zerop (mod (length obj) 2)))))
+
 (defun l--instancep (obj)
   "Return t if OBJ is a struct or EIEIO object instance.
 This matches both cl-defstruct instances and EIEIO class instances."
@@ -113,7 +126,7 @@ instance of a category) but less specific than value matches.")
     (:list        . listp)
     (:null        . null)
     (:object      . eieio-object-p)
-    (:plist       . plistp)
+    (:plist       . l--plistp)
     (:record      . recordp)
     (:string      . stringp)
     (:struct      . cl-struct-p)

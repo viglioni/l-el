@@ -7,8 +7,12 @@ on:
       - "*"
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   release:
     runs-on: ubuntu-latest
+    needs: test
     permissions:
       contents: write
 
@@ -32,3 +36,17 @@ jobs:
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git checkout -B latest-release
           git push origin latest-release --force
+
+  cleanup-failed-tag:
+    runs-on: ubuntu-latest
+    needs: test
+    if: failure()
+    permissions:
+      contents: write
+
+    steps:
+      - name: Delete failing tag
+        run: |
+          git push origin --delete ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

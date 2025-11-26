@@ -38,8 +38,9 @@
       (let ((add-prefix (lambda (s) (concat "Mr. " s)))
             (add-suffix (lambda (s) (concat s " Jr.")))
             (upcase-fn (lambda (s) (upcase s)))
-            (trim-spaces (lambda (s) (string-trim s))))
-        (expect (funcall (lcomp add-prefix add-suffix upcase-fn trim-spaces) " john ") 
+            ;; Use replace-regexp-in-string for Emacs 26 compatibility (string-trim added in 27.1)
+            (trim-spaces (lambda (s) (replace-regexp-in-string "\\`[ \t\n\r]+\\|[ \t\n\r]+\\'" "" s))))
+        (expect (funcall (lcomp add-prefix add-suffix upcase-fn trim-spaces) " john ")
                 :to-equal "Mr. JOHN Jr."))))
 
   (describe "lcomp with type transformations"
@@ -113,7 +114,8 @@
         (expect (lpipe 3 square double add-one) :to-equal 19))) ; 3 -> 9 -> 18 -> 19
 
     (test-it "pipes through string transformations"
-      (let ((trim-spaces (lambda (s) (string-trim s)))
+      (let (;; Use replace-regexp-in-string for Emacs 26 compatibility (string-trim added in 27.1)
+            (trim-spaces (lambda (s) (replace-regexp-in-string "\\`[ \t\n\r]+\\|[ \t\n\r]+\\'" "" s)))
             (upcase-fn (lambda (s) (upcase s)))
             (add-suffix (lambda (s) (concat s " Jr.")))
             (add-prefix (lambda (s) (concat "Mr. " s))))
