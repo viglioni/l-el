@@ -472,6 +472,7 @@ The library supports the following type predicates for pattern matching:
 
 - =:array= - arrayp (vectors, strings, char-tables, bool-vectors)
 - =:callable= - function or subroutine
+- =:instance= - l--instancep (cl-defstruct and EIEIO class instances)
 - =:number= - numberp (integers and floats)
 - =:sequence= - sequencep (lists, vectors, strings)
 

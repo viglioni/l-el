@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 - =lpipe= function in =l-functions=
 - more type predicates and aliases
   - =:alist= =:plist= =:array= =:sequence= (=:seq=) =:bool-vector= (=:bvector=) =:char-table= (=:ctable=)
-  - =:struct= =:object= =:record= for cl-defstruct and EIEIO class instances
+  - =:struct= =:object= =:record= =:instance= for cl-defstruct and EIEIO class instances
   - short aliases: =:buff= =:fn= =:int= =:nil= =:str=
 * 0.4.0 - 2025-11-23
 

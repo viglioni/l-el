@@ -212,4 +212,25 @@
     (test-it "does not match non-records"
       (expect (record-handler '(1 2 3)) :to-equal 'not-record)
       (expect (record-handler "string") :to-equal 'not-record)
-      (expect (record-handler 42) :to-equal 'not-record))))
+      (expect (record-handler 42) :to-equal 'not-record)))
+
+  (describe "instance type matcher"
+    (before-all
+      (cl-defstruct test-instance-struct data)
+      (defclass test-instance-class ()
+        ((data :initarg :data)))
+      (ldef instance-handler ((x :instance)) (cons 'instance (type-of x)))
+      (ldef instance-handler (x) 'not-instance))
+
+    (test-it "matches cl-defstruct instances"
+      (let ((obj (make-test-instance-struct :data 42)))
+        (expect (car (instance-handler obj)) :to-equal 'instance)))
+
+    (test-it "matches EIEIO class instances"
+      (let ((obj (make-instance 'test-instance-class :data 42)))
+        (expect (car (instance-handler obj)) :to-equal 'instance)))
+
+    (test-it "does not match non-instances"
+      (expect (instance-handler '(1 2 3)) :to-equal 'not-instance)
+      (expect (instance-handler "string") :to-equal 'not-instance)
+      (expect (instance-handler 42) :to-equal 'not-instance))))

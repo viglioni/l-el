@@ -35,6 +35,12 @@ An alist is a list where every element is a cons cell."
   (and (listp obj)
        (cl-every #'consp obj)))
 
+(defun l--instancep (obj)
+  "Return t if OBJ is a struct or EIEIO object instance.
+This matches both cl-defstruct instances and EIEIO class instances."
+  (or (cl-struct-p obj)
+      (eieio-object-p obj)))
+
 (defvar l-generic-type-predicates
   '(;; Primitive/specific types
     (:alist       . l--alistp)
@@ -58,6 +64,7 @@ An alist is a list where every element is a cons cell."
     ;; Composite/category types
     (:array       . arrayp)
     (:callable    . (lambda (x) (or (functionp x) (subrp x))))
+    (:instance    . l--instancep)
     (:number      . numberp)
     (:sequence    . sequencep)
     ;; Aliases (short forms)
@@ -100,6 +107,7 @@ Primitive/specific types:
 Composite/category types:
 - :array       - matches arrays       (arrayp) - vectors, strings, char-tables, bool-vectors
 - :callable    - matches functions or subroutines
+- :instance    - matches instances    (l--instancep) - cl-defstruct and EIEIO objects
 - :number      - matches numbers      (numberp) - integers and floats
 - :sequence    - matches sequences    (sequencep) - lists, vectors, strings
 
