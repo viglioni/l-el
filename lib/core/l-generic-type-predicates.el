@@ -41,20 +41,40 @@ This matches both cl-defstruct instances and EIEIO class instances."
   (or (cl-struct-p obj)
       (eieio-object-p obj)))
 
-(defvar l-generic-parameterized-type-predicates
-  '((:instance_of . cl-typep))
-  "Type predicates that require an additional type argument.
+(defun l--list-of-p (obj type-keyword)
+  "Return t if OBJ is a list where every element matches TYPE-KEYWORD.
 
-These predicates take both a value and a type name as arguments.
-For example, :instance_of uses cl-typep to check if a value is an
-instance of a specific struct or class type.
-
-Usage in patterns:
-  (arg :instance_of type-name)  ; matches when arg is an instance of type-name
+TYPE-KEYWORD should be a keyword from `l-generic-type-predicates'.
 
 Examples:
-  (ldef process-point ((p :instance_of point)) ...)  ; only matches point structs
-  (ldef handle-buffer ((b :instance_of my-buffer)) ...) ; only matches my-buffer class
+  (l--list-of-p '(1 2 3) :integer)     ; => t
+  (l--list-of-p '(1 2 \"3\") :integer) ; => nil
+  (l--list-of-p '(\"a\" \"b\") :string) ; => t
+  (l--list-of-p '() :integer)          ; => t (empty list matches any type)"
+  (and (listp obj)
+       (let ((predicate (cdr (assoc type-keyword l-generic-type-predicates))))
+         (if predicate
+             (cl-every predicate obj)
+           (error "Unknown type predicate for list_of: %s" type-keyword)))))
+
+(defvar l-generic-parameterized-type-predicates
+  '((:instance_of . cl-typep)
+    (:list_of     . l--list-of-p))
+  "Type predicates that require an additional type argument.
+
+These predicates take both a value and a type specifier as arguments.
+
+Available parameterized types:
+
+- :instance_of - uses cl-typep to check if a value is an instance of a
+  specific struct or class type.
+  Usage: (arg :instance_of type-name)
+  Example: (ldef process-point ((p :instance_of point)) ...)
+
+- :list_of - uses l--list-of-p to check if a value is a list where every
+  element matches a specific type.
+  Usage: (arg :list_of :type-keyword)
+  Example: (ldef sum-integers ((nums :list_of :integer)) ...)
 
 These are more specific than regular type predicates (which match any
 instance of a category) but less specific than value matches.")

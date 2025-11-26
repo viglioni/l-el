@@ -286,4 +286,47 @@
             (c (make-circle :center '(0 0) :radius 1)))
         (expect (specificity-test p) :to-equal "specific point")
         (expect (specificity-test c) :to-equal "any struct")
-        (expect (specificity-test "string") :to-equal "anything")))))
+        (expect (specificity-test "string") :to-equal "anything"))))
+
+  (describe "list_of type matcher (parameterized)"
+    (before-all
+      (ldef sum-integers ((nums :list_of :integer)) (apply #'+ nums))
+      (ldef sum-integers (nums) "not a list of integers")
+
+      (ldef process-strings ((strs :list_of :string)) (mapconcat #'upcase strs " "))
+      (ldef process-strings (strs) "not a list of strings"))
+
+    (test-it "matches list of integers"
+      (expect (sum-integers '(1 2 3 4 5)) :to-equal 15)
+      (expect (sum-integers '(10 20)) :to-equal 30))
+
+    (test-it "matches empty list"
+      (expect (sum-integers '()) :to-equal 0))
+
+    (test-it "does not match list with mixed types"
+      (expect (sum-integers '(1 2 "3")) :to-equal "not a list of integers"))
+
+    (test-it "does not match non-list"
+      (expect (sum-integers "hello") :to-equal "not a list of integers")
+      (expect (sum-integers 42) :to-equal "not a list of integers"))
+
+    (test-it "matches list of strings"
+      (expect (process-strings '("hello" "world")) :to-equal "HELLO WORLD")
+      (expect (process-strings '("foo")) :to-equal "FOO"))
+
+    (test-it "works with other type keywords"
+      (ldef process-symbols ((syms :list_of :symbol)) (length syms))
+      (ldef process-symbols (x) -1)
+
+      (expect (process-symbols '(a b c)) :to-equal 3)
+      (expect (process-symbols '(foo bar)) :to-equal 2)
+      (expect (process-symbols '(a "b")) :to-equal -1))
+
+    (test-it "specificity: list_of > generic list > wildcard"
+      (ldef list-processor ((lst :list_of :integer)) "list of integers")
+      (ldef list-processor ((lst :list)) "any list")
+      (ldef list-processor (x) "anything")
+
+      (expect (list-processor '(1 2 3)) :to-equal "list of integers")
+      (expect (list-processor '(1 "2" 3)) :to-equal "any list")
+      (expect (list-processor "string") :to-equal "anything"))))
