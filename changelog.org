@@ -11,6 +11,9 @@ All notable changes to this project will be documented in this file.
   - =:alist= =:plist= =:array= =:sequence= (=:seq=) =:bool-vector= (=:bvector=) =:char-table= (=:ctable=)
   - =:struct= =:object= =:record= =:instance= for cl-defstruct and EIEIO class instances
   - short aliases: =:buff= =:fn= =:int= =:nil= =:str=
+- parameterized type matching with =:instance_of=
+  - allows matching specific struct/class types: =(x :instance_of point)=
+  - new specificity scoring system: value (1M) > parameterized type (10K) > regular type (100) > wildcard (1)
 * 0.4.0 - 2025-11-23
 
 ** Added

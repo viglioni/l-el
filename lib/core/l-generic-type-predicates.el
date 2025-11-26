@@ -41,6 +41,24 @@ This matches both cl-defstruct instances and EIEIO class instances."
   (or (cl-struct-p obj)
       (eieio-object-p obj)))
 
+(defvar l-generic-parameterized-type-predicates
+  '((:instance_of . cl-typep))
+  "Type predicates that require an additional type argument.
+
+These predicates take both a value and a type name as arguments.
+For example, :instance_of uses cl-typep to check if a value is an
+instance of a specific struct or class type.
+
+Usage in patterns:
+  (arg :instance_of type-name)  ; matches when arg is an instance of type-name
+
+Examples:
+  (ldef process-point ((p :instance_of point)) ...)  ; only matches point structs
+  (ldef handle-buffer ((b :instance_of my-buffer)) ...) ; only matches my-buffer class
+
+These are more specific than regular type predicates (which match any
+instance of a category) but less specific than value matches.")
+
 (defvar l-generic-type-predicates
   '(;; Primitive/specific types
     (:alist       . l--alistp)

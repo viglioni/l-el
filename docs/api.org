@@ -476,6 +476,30 @@ The library supports the following type predicates for pattern matching:
 - =:number= - numberp (integers and floats)
 - =:sequence= - sequencep (lists, vectors, strings)
 
+** Parameterized types
+
+These types require an additional argument to specify the exact type to match:
+
+- =:instance_of= - cl-typep (matches specific struct or class type)
+
+Usage: =(param :instance_of type-name)=
+
+Examples:
+#+begin_src emacs-lisp
+(cl-defstruct point x y)
+(defclass person () ((name :initarg :name)))
+
+(ldef process-point ((p :instance_of point))
+  ;; Only matches point structs
+  (format "Point at %d,%d" (point-x p) (point-y p)))
+
+(ldef greet-person ((p :instance_of person))
+  ;; Only matches person class instances
+  (format "Hello %s" (oref p name)))
+#+end_src
+
+Specificity: =instance_of= (10,000 points) is more specific than regular type predicates (100 points) but less specific than value matches (1,000,000 points).
+
 ** Aliases (short forms)
 
 - =:buff= - alias for =:buffer=

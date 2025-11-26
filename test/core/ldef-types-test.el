@@ -233,4 +233,57 @@
     (test-it "does not match non-instances"
       (expect (instance-handler '(1 2 3)) :to-equal 'not-instance)
       (expect (instance-handler "string") :to-equal 'not-instance)
-      (expect (instance-handler 42) :to-equal 'not-instance))))
+      (expect (instance-handler 42) :to-equal 'not-instance)))
+
+  (describe "instance_of type matcher (parameterized)"
+    (before-all
+      (cl-defstruct point x y)
+      (cl-defstruct circle center radius)
+      (defclass person ()
+        ((name :initarg :name)
+         (age :initarg :age)))
+      (defclass employee ()
+        ((id :initarg :id)))
+
+      (ldef shape-processor ((s :instance_of point)) "processing point")
+      (ldef shape-processor ((s :instance_of circle)) "processing circle")
+      (ldef shape-processor ((s :struct)) "processing generic struct")
+      (ldef shape-processor (s) "not a struct"))
+
+    (test-it "matches specific struct type"
+      (let ((p (make-point :x 10 :y 20)))
+        (expect (shape-processor p) :to-equal "processing point")))
+
+    (test-it "matches different struct type"
+      (let ((c (make-circle :center '(0 0) :radius 5)))
+        (expect (shape-processor c) :to-equal "processing circle")))
+
+    (test-it "falls through to generic struct for unmatched struct types"
+      (cl-defstruct triangle a b c)
+      (let ((t1 (make-triangle :a 1 :b 2 :c 3)))
+        (expect (shape-processor t1) :to-equal "processing generic struct")))
+
+    (test-it "falls through to catch-all for non-structs"
+      (expect (shape-processor "string") :to-equal "not a struct")
+      (expect (shape-processor 42) :to-equal "not a struct"))
+
+    (test-it "works with EIEIO classes"
+      (ldef person-processor ((p :instance_of person)) "processing person")
+      (ldef person-processor ((e :instance_of employee)) "processing employee")
+      (ldef person-processor (x) "not a person or employee")
+
+      (let ((p (make-instance 'person :name "Alice" :age 30))
+            (e (make-instance 'employee :id 123)))
+        (expect (person-processor p) :to-equal "processing person")
+        (expect (person-processor e) :to-equal "processing employee")))
+
+    (test-it "specificity: instance_of > generic type > wildcard"
+      (ldef specificity-test ((x :instance_of point)) "specific point")
+      (ldef specificity-test ((x :struct)) "any struct")
+      (ldef specificity-test (x) "anything")
+
+      (let ((p (make-point :x 1 :y 2))
+            (c (make-circle :center '(0 0) :radius 1)))
+        (expect (specificity-test p) :to-equal "specific point")
+        (expect (specificity-test c) :to-equal "any struct")
+        (expect (specificity-test "string") :to-equal "anything")))))

@@ -39,6 +39,36 @@
 ;; l-generic dispatcher ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun l-generic--parse-pattern (pattern)
+  "Parse PATTERN and return (param-name type-keyword type-arg).
+
+PATTERN can be:
+- A symbol: returns (pattern nil nil)
+- A 2-element list (param spec): returns (param spec nil)
+- A 3-element list (param type arg): returns (param type arg)
+
+Examples:
+  (l-generic--parse-pattern 'x)
+  ;; => (x nil nil)
+
+  (l-generic--parse-pattern '(x :integer))
+  ;; => (x :integer nil)
+
+  (l-generic--parse-pattern '(x :instance_of point))
+  ;; => (x :instance_of point)
+
+  (l-generic--parse-pattern '(x \"hello\"))
+  ;; => (x \"hello\" nil)"
+  (cond
+   ((symbolp pattern)
+    (list pattern nil nil))
+   ((listp pattern)
+    (let ((param (car pattern))
+          (spec (cadr pattern))
+          (type-arg (caddr pattern)))
+      (list param spec type-arg)))
+   (t
+    (error "Invalid pattern: %s" pattern))))
 
 (defun l-generic--calculate-specificity (pattern-list)
   "Calculate specificity score for PATTERN-LIST.
@@ -48,7 +78,8 @@ Higher scores indicate more specific patterns that should be
 matched before more general ones.
 
 Scoring rules:
-- Value match: 1000 points per pattern
+- Value match: 1,000,000 points per pattern
+- Parameterized type match: 10,000 points per pattern
 - Type match: 100 points per pattern
 - Wildcard with binding: 1 point per pattern
 - Regular parameter: 1 point per pattern
@@ -72,13 +103,23 @@ Examples:
   (cl-reduce
    #'+
    (mapcar (lambda (pattern)
-             (cond ((listp pattern)
-                    (let ((spec (cadr pattern)))
-                      (cond ((keywordp spec) 100) ; type match
-                            (t 1000))))           ; value match
-                   ((and (symbolp pattern) ; wildcard with binding
-                         (string-prefix-p "_" (symbol-name pattern))) 1)
-                   (t 1)))              ; regular wildcard
+             (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
+               (cond ((and (keywordp spec) type-arg)
+                      ;; Parameterized type match: (x :instance_of point)
+                      10000)
+                     ((keywordp spec)
+                      ;; Regular type match: (x :integer)
+                      100)
+                     ((not (symbolp pattern))
+                      ;; Value match: (x 42) or (x nil)
+                      1000000)
+                     ((and (symbolp param)
+                           (string-prefix-p "_" (symbol-name param)))
+                      ;; Wildcard with binding: _x
+                      1)
+                     (t
+                      ;; Regular parameter: x
+                      1))))
            pattern-list)
    :initial-value 0))
 
@@ -109,29 +150,34 @@ Examples:
   
   \(l-generic--generate-pattern-condition \\='_ignore 2)
   ;; => t (wildcard always matches)"
-  (cond
-   ((listp pattern)
-    (let ((spec (cadr pattern)))
-      (cond
-       ((eq spec :rest)
-        ;; Rest parameters always match (handled specially)
-        t)
-       ((keywordp spec)
-        ;; Type match: (arg :integer) -> (integerp (nth 0 args))
-        (let ((predicate (cdr (assoc spec l-generic-type-predicates))))
-          (if predicate
-              `(,predicate (nth ,arg-index args))
-            (error "Unknown type predicate: %s" spec))))
-       (t
-        ;; Value match: (arg "value") -> (equal (nth 0 args) "value")
-        `(equal (nth ,arg-index args) ,spec)))))
-   ((and (symbolp pattern)
-         (string-prefix-p "_" (symbol-name pattern)))
-    ;; Wildcard with binding: always true
-    t)
-   (t
-    ;; Regular parameter: always true
-    t)))
+  (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
+    (cond
+     ((eq spec :rest)
+      ;; Rest parameters always match (handled specially)
+      t)
+     ((and (keywordp spec) type-arg)
+      ;; Parameterized type match: (arg :instance_of point) -> (cl-typep (nth 0 args) 'point)
+      (let ((predicate (cdr (assoc spec l-generic-parameterized-type-predicates))))
+        (if predicate
+            `(,predicate (nth ,arg-index args) ',type-arg)
+          (error "Unknown parameterized type predicate: %s" spec))))
+     ((keywordp spec)
+      ;; Regular type match: (arg :integer) -> (integerp (nth 0 args))
+      (let ((predicate (cdr (assoc spec l-generic-type-predicates))))
+        (if predicate
+            `(,predicate (nth ,arg-index args))
+          (error "Unknown type predicate: %s" spec))))
+     ((not (symbolp pattern))
+      ;; Value match: (arg "value") or (arg nil) -> (equal (nth 0 args) value)
+      ;; Note: we check (not (symbolp pattern)) to distinguish (x nil) from just x
+      `(equal (nth ,arg-index args) ,spec))
+     ((and (symbolp param)
+           (string-prefix-p "_" (symbol-name param)))
+      ;; Wildcard with binding: always true
+      t)
+     (t
+      ;; Regular parameter: always true
+      t))))
 
 (defun l-generic--generate-bindings (pattern-list)
   "Generate let bindings for PATTERN-LIST parameters.
@@ -154,8 +200,9 @@ Examples:
   (l-generic--generate-bindings \\='(_ignore x))
   ;; => ((_ignore (nth 0 args)) (x (nth 1 args)))"
   (let ((rest-pos (cl-position-if (lambda (pattern)
-                                   (and (listp pattern)
-                                        (eq (cadr pattern) :rest)))
+                                   (cl-destructuring-bind (_param spec _type-arg)
+                                       (l-generic--parse-pattern pattern)
+                                     (eq spec :rest)))
                                  pattern-list)))
     (if rest-pos
         ;; Handle rest parameter
@@ -163,15 +210,18 @@ Examples:
          ;; Fixed parameters
          (cl-loop for pattern in (cl-subseq pattern-list 0 rest-pos)
                   for i from 0
-                  collect (let ((param (if (listp pattern) (car pattern) pattern)))
+                  collect (cl-destructuring-bind (param _spec _type-arg)
+                              (l-generic--parse-pattern pattern)
                             `(,param (nth ,i args))))
          ;; Rest parameter
-         (list (let ((rest-pattern (nth rest-pos pattern-list)))
-                 `(,(car rest-pattern) (nthcdr ,rest-pos args)))))
+         (list (cl-destructuring-bind (param _spec _type-arg)
+                   (l-generic--parse-pattern (nth rest-pos pattern-list))
+                 `(,param (nthcdr ,rest-pos args)))))
       ;; No rest parameter - normal binding
       (cl-loop for pattern in pattern-list
                for i from 0
-               collect (let ((param (if (listp pattern) (car pattern) pattern)))
+               collect (cl-destructuring-bind (param _spec _type-arg)
+                           (l-generic--parse-pattern pattern)
                          `(,param (nth ,i args)))))))
 
 (cl-defmethod l-generic--generate-method-clause ((method l-generic-method-spec))
@@ -316,8 +366,10 @@ General documentation: %s"
 METHODS are a list of `l-generic-method-spec'."
   (cl-remove-if-not ;; list of methods that contains :rest in the params
    (lambda (method)
-     (cl-some (lambda (pattern) (and (listp pattern) ;; Short-circuit: remove symbol params
-                                (eq (cadr pattern) :rest)))
+     (cl-some (lambda (pattern)
+                (cl-destructuring-bind (_param spec _type-arg)
+                    (l-generic--parse-pattern pattern)
+                  (eq spec :rest)))
               (l--pattern-list method)))
    methods))
 
@@ -400,7 +452,9 @@ Examples:
 \(ldef foo (a (b :rest) (c :string))...) ;; incorrect"
   (let ((rest-positions (cl-loop for pattern in pattern-list
                                  for i from 0
-                                 when (and (listp pattern) (eq (cadr pattern) :rest))
+                                 when (cl-destructuring-bind (_param spec _type-arg)
+                                          (l-generic--parse-pattern pattern)
+                                        (eq spec :rest))
                                  collect i)))
 
     ;; rest position validations
