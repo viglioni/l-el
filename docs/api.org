@@ -447,8 +447,12 @@ Each argument is automatically wrapped with =__=, so you can use the placeholder
 
 The library supports the following type predicates for pattern matching:
 
+** Primitive/specific types
+
+- =:alist= - l--alistp (association lists =((k . v) ...)=)
+- =:bool-vector= - bool-vector-p (compact bit arrays)
 - =:buffer= - bufferp
-- =:callable= - function or subroutine
+- =:char-table= - char-table-p (character lookup tables)
 - =:cons= - consp
 - =:float= - floatp
 - =:function= - functionp
@@ -456,8 +460,25 @@ The library supports the following type predicates for pattern matching:
 - =:integer= - integerp
 - =:list= - listp
 - =:null= - null
-- =:number= - numberp
-- =:sequence= - sequencep
+- =:plist= - plistp (property lists =(:k v ...)=)
 - =:string= - stringp
 - =:symbol= - symbolp
 - =:vector= - vectorp
+
+** Composite/category types
+
+- =:array= - arrayp (vectors, strings, char-tables, bool-vectors)
+- =:callable= - function or subroutine
+- =:number= - numberp (integers and floats)
+- =:sequence= - sequencep (lists, vectors, strings)
+
+** Aliases (short forms)
+
+- =:buff= - alias for =:buffer=
+- =:bvector= - alias for =:bool-vector=
+- =:ctable= - alias for =:char-table=
+- =:fn= - alias for =:function=
+- =:int= - alias for =:integer=
+- =:nil= - alias for =:null=
+- =:seq= - alias for =:sequence=
+- =:str= - alias for =:string=

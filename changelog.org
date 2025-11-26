@@ -6,8 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ** Added
 - Custom exceptions in =l-exception.el=
-- Added =lpipe= function in =l-functions=
-  
+- =lpipe= function in =l-functions=
+- more type predicates and aliases
+  - =alist= =plist= =array= =sequence= =bool-vector= =char-table=
 * 0.4.0 - 2025-11-23
 
 ** Added
