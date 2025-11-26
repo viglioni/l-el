@@ -42,6 +42,9 @@
 (define-error 'l-type-mismatch-error "Type mismatch in pattern matching" 'l-error)
 (define-error 'l-arity-error "Wrong number of arguments" 'l-error)
 (define-error 'l-unknown-type-predicate-error "Unknown type predicate" 'l-error)
+(define-error 'l-invalid-pattern-error "Invalid pattern" 'l-error)
+(define-error 'l-invalid-rest-parameter-error "Invalid :rest parameter usage" 'l-error)
+(define-error 'l-internal-error "Internal l.el error" 'l-error)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Error raising functions ;;
@@ -139,7 +142,7 @@ For \\='error:
     ('error
      (apply #'l--raise-error format-string args))
 
-    (_ (error "Unknown error type: %s" error-type))))
+    (_ (signal 'l-internal-error (list (format "Unknown error type: %s" error-type))))))
 
 (provide 'l-exception)
 ;;; l-exception.el ends here

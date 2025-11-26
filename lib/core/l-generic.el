@@ -68,7 +68,7 @@ Examples:
           (type-arg (caddr pattern)))
       (list param spec type-arg)))
    (t
-    (error "Invalid pattern: %s" pattern))))
+    (signal 'l-invalid-pattern-error (list pattern)))))
 
 (defun l-generic--calculate-specificity (pattern-list)
   "Calculate specificity score for PATTERN-LIST.
@@ -460,9 +460,11 @@ Examples:
     ;; rest position validations
     (when rest-positions
       (when (> (length rest-positions) 1)
-        (error "Only one :rest parameter allowed in function '%s'" name))
+        (signal 'l-invalid-rest-parameter-error
+                (list name "Only one :rest parameter allowed")))
       (when (/= (car rest-positions) (1- (length pattern-list)))
-        (error ":rest parameter must be the last parameter in function '%s'" name)))))
+        (signal 'l-invalid-rest-parameter-error
+                (list name ":rest parameter must be the last parameter"))))))
 
 (defun l-generic-cleanup (name)
   "Remove generic function NAME and all its methods.
