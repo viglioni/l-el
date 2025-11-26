@@ -460,8 +460,11 @@ The library supports the following type predicates for pattern matching:
 - =:integer= - integerp
 - =:list= - listp
 - =:null= - null
+- =:object= - eieio-object-p (EIEIO class instances)
 - =:plist= - plistp (property lists =(:k v ...)=)
+- =:record= - recordp (generic record type, includes structs and EIEIO objects)
 - =:string= - stringp
+- =:struct= - cl-struct-p (cl-defstruct instances)
 - =:symbol= - symbolp
 - =:vector= - vectorp
 

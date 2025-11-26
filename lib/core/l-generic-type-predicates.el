@@ -27,6 +27,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'eieio)
 
 (defun l--alistp (obj)
   "Return t if OBJ is an alist (association list).
@@ -47,8 +48,11 @@ An alist is a list where every element is a cons cell."
     (:integer     . integerp)
     (:list        . listp)
     (:null        . null)
+    (:object      . eieio-object-p)
     (:plist       . plistp)
+    (:record      . recordp)
     (:string      . stringp)
+    (:struct      . cl-struct-p)
     (:symbol      . symbolp)
     (:vector      . vectorp)
     ;; Composite/category types
@@ -85,8 +89,11 @@ Primitive/specific types:
 - :integer     - matches integers     (integerp)
 - :list        - matches lists        (listp)
 - :null        - matches nil          (null)
+- :object      - matches EIEIO objects (eieio-object-p) - class instances
 - :plist       - matches plists       (plistp) - property lists (:k v ...)
+- :record      - matches records      (recordp) - generic record type
 - :string      - matches strings      (stringp)
+- :struct      - matches structs      (cl-struct-p) - cl-defstruct instances
 - :symbol      - matches symbols      (symbolp)
 - :vector      - matches vectors      (vectorp)
 

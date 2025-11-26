@@ -159,4 +159,57 @@
 
     (test-it "does not match non-lists"
       (expect (plist-handler "string") :to-equal 'not-plist)
-      (expect (plist-handler 42) :to-equal 'not-plist))))
+      (expect (plist-handler 42) :to-equal 'not-plist)))
+
+  (describe "struct type matcher"
+    (before-all
+      (cl-defstruct test-struct name age)
+      (ldef struct-handler ((x :struct)) (cons 'struct (type-of x)))
+      (ldef struct-handler (x) 'not-struct))
+
+    (test-it "matches cl-defstruct instances"
+      (let ((obj (make-test-struct :name "Alice" :age 30)))
+        (expect (struct-handler obj) :to-equal '(struct . test-struct))))
+
+    (test-it "does not match non-structs"
+      (expect (struct-handler '(1 2 3)) :to-equal 'not-struct)
+      (expect (struct-handler "string") :to-equal 'not-struct)
+      (expect (struct-handler 42) :to-equal 'not-struct)))
+
+  (describe "object type matcher"
+    (before-all
+      (defclass test-class ()
+        ((name :initarg :name)
+         (age :initarg :age)))
+      (ldef object-handler ((x :object)) (cons 'object (eieio-object-class x)))
+      (ldef object-handler (x) 'not-object))
+
+    (test-it "matches EIEIO class instances"
+      (let ((obj (make-instance 'test-class :name "Alice" :age 30)))
+        (expect (object-handler obj) :to-equal '(object . test-class))))
+
+    (test-it "does not match non-objects"
+      (expect (object-handler '(1 2 3)) :to-equal 'not-object)
+      (expect (object-handler "string") :to-equal 'not-object)
+      (expect (object-handler 42) :to-equal 'not-object)))
+
+  (describe "record type matcher"
+    (before-all
+      (cl-defstruct test-record-struct field)
+      (defclass test-record-class ()
+        ((field :initarg :field)))
+      (ldef record-handler ((x :record)) (cons 'record (type-of x)))
+      (ldef record-handler (x) 'not-record))
+
+    (test-it "matches cl-defstruct instances"
+      (let ((obj (make-test-record-struct :field 42)))
+        (expect (car (record-handler obj)) :to-equal 'record)))
+
+    (test-it "matches EIEIO class instances"
+      (let ((obj (make-instance 'test-record-class :field 42)))
+        (expect (car (record-handler obj)) :to-equal 'record)))
+
+    (test-it "does not match non-records"
+      (expect (record-handler '(1 2 3)) :to-equal 'not-record)
+      (expect (record-handler "string") :to-equal 'not-record)
+      (expect (record-handler 42) :to-equal 'not-record))))
