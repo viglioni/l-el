@@ -329,4 +329,19 @@
 
       (expect (list-processor '(1 2 3)) :to-equal "list of integers")
       (expect (list-processor '(1 "2" 3)) :to-equal "any list")
-      (expect (list-processor "string") :to-equal "anything"))))
+      (expect (list-processor "string") :to-equal "anything")))
+
+  (describe "unknown type predicate errors"
+    (test-it "raises l-unknown-type-predicate-error for unknown regular type"
+      (expect (ldef bad-func ((x :invalid-type)) "never matches")
+              :to-throw 'l-unknown-type-predicate-error))
+
+    (test-it "raises l-unknown-type-predicate-error for unknown parameterized type"
+      (expect (ldef bad-func2 ((x :invalid_param point)) "never matches")
+              :to-throw 'l-unknown-type-predicate-error))
+
+    (test-it "raises l-unknown-type-predicate-error for invalid list_of type at runtime"
+      (ldef bad-func3 ((x :list_of :invalid-type)) "never matches")
+      (ldef bad-func3 (x) "fallback")
+      (expect (bad-func3 '(1 2 3))
+              :to-throw 'l-unknown-type-predicate-error))))

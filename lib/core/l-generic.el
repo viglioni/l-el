@@ -160,13 +160,13 @@ Examples:
       (let ((predicate (cdr (assoc spec l-generic-parameterized-type-predicates))))
         (if predicate
             `(,predicate (nth ,arg-index args) ',type-arg)
-          (error "Unknown parameterized type predicate: %s" spec))))
+          (l--raise-unknown-type-predicate spec "parameterized pattern matching"))))
      ((keywordp spec)
       ;; Regular type match: (arg :integer) -> (integerp (nth 0 args))
       (let ((predicate (cdr (assoc spec l-generic-type-predicates))))
         (if predicate
             `(,predicate (nth ,arg-index args))
-          (error "Unknown type predicate: %s" spec))))
+          (l--raise-unknown-type-predicate spec "pattern matching"))))
      ((not (symbolp pattern))
       ;; Value match: (arg "value") or (arg nil) -> (equal (nth 0 args) value)
       ;; Note: we check (not (symbolp pattern)) to distinguish (x nil) from just x

@@ -28,6 +28,7 @@
 
 (require 'cl-lib)
 (require 'eieio)
+(require 'l-exception)
 
 (defun l--alistp (obj)
   "Return t if OBJ is an alist (association list).
@@ -55,7 +56,7 @@ Examples:
        (let ((predicate (cdr (assoc type-keyword l-generic-type-predicates))))
          (if predicate
              (cl-every predicate obj)
-           (error "Unknown type predicate for list_of: %s" type-keyword)))))
+           (l--raise-unknown-type-predicate type-keyword "list_of validation")))))
 
 (defvar l-generic-parameterized-type-predicates
   '((:instance_of . cl-typep)

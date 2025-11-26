@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
   - =:instance_of= - matches specific struct/class types: =(x :instance_of point)=
   - =:list_of= - matches lists of specific type: =(nums :list_of :integer)=
   - new specificity scoring system: value (1M) > parameterized type (10K) > regular type (100) > wildcard (1)
+- custom error type =l-unknown-type-predicate-error= for invalid type predicates
 * 0.4.0 - 2025-11-23
 
 ** Added

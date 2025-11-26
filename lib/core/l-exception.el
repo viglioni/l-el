@@ -41,6 +41,7 @@
 (define-error 'l-pattern-match-error "Pattern match error" 'l-error)
 (define-error 'l-type-mismatch-error "Type mismatch in pattern matching" 'l-error)
 (define-error 'l-arity-error "Wrong number of arguments" 'l-error)
+(define-error 'l-unknown-type-predicate-error "Unknown type predicate" 'l-error)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Error raising functions ;;
@@ -75,6 +76,16 @@ ARGS is the list of arguments that couldn't be matched."
   "Raise a generic l-error with FORMAT-STRING and ARGS."
   (signal 'l-error (list (apply #'format format-string args))))
 
+(defun l--raise-unknown-type-predicate (type-keyword &optional context)
+  "Raise an unknown type predicate error.
+TYPE-KEYWORD is the unknown type keyword (e.g., \\=':invalid-type).
+CONTEXT is an optional string describing where the error occurred
+\(e.g., \"pattern matching\" or \"list_of validation\")."
+  (signal 'l-unknown-type-predicate-error
+          (if context
+              (list type-keyword context)
+            (list type-keyword))))
+
 (cl-defun l-raise (error-type &key predicate value context function-name expected actual args format-string)
   "Raise an error of ERROR-TYPE with appropriate arguments.
 
@@ -83,6 +94,7 @@ Supported error types:
   \\='type-mismatch - Type mismatch in pattern matching
   \\='arity-error - Wrong number of arguments
   \\='pattern-match - Pattern match failure
+  \\='unknown-type-predicate - Unknown type predicate
   \\='error - Generic l-error
 
 For \\='type-mismatch:
@@ -102,6 +114,11 @@ For \\='pattern-match:
   :args - List of arguments that couldn't be matched
   Example: (l-raise \\='pattern-match :function-name \\='my-func :args (list 1 2))
 
+For \\='unknown-type-predicate:
+  :predicate - The unknown type keyword (e.g., \\=':invalid-type)
+  :context - Optional context string
+  Example: (l-raise \\='unknown-type-predicate :predicate \\=':invalid-type :context \"pattern matching\")
+
 For \\='error:
   :format-string - Format string for the error message
   :args - List of arguments for the format string
@@ -115,6 +132,9 @@ For \\='error:
 
     ('pattern-match
      (l--raise-pattern-match-error function-name args))
+
+    ('unknown-type-predicate
+     (l--raise-unknown-type-predicate predicate context))
 
     ('error
      (apply #'l--raise-error format-string args))
