@@ -26,7 +26,7 @@
 ;; This is a sublibrary of l.el providing additional functionality.
 ;; This file uses l-syntax
 ;;
-;; since 0.4.0
+;; since 0.5.0
 
 ;;; Code:
 
@@ -50,7 +50,7 @@ Each argument is automatically wrapped with `__', so you can use the `__'
 placeholder syntax directly: (lcomp (+ __ 1) (* __ 2)) instead of
 \(lcomp (__ (+ __ 1)) (__ (* __ 2))).
 
-since: 0.4.0
+since: 0.5.0
 
 Arguments:
 - No arguments: returns identity function
