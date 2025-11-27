@@ -23,9 +23,11 @@ All notable changes to this project will be documented in this file.
 - Enhanced =l-raise= to support =invalid-rest-parameter= error type
 - Improved =&rest= validation in =ldef= to detect misuse in nested argument patterns
 - Enhanced =l-mode= syntax highlighting:
-  - =ldef= function names now highlighted with =font-lock-keyword-face= (bold purple/magenta)
-  - Makes function definitions highly visible and easy to spot in code
-  - Both the =ldef= keyword and function name use the same prominent highlighting
+  - =ldef= function names now highlighted with =font-lock-keyword-face= (bold purple/magenta) in definitions
+  - =ldef= function *calls* also highlighted to distinguish them from regular functions
+  - Three distinct highlighting styles: macros (default), regular functions (default), ldef functions (purple)
+  - Makes function definitions and calls highly visible and easy to spot in code
+- Added =ldefp= utility function to check if a symbol is an ldef-defined function
 
 * 0.5.0 - 2025-11-26
 

@@ -33,7 +33,7 @@
     (test-it "defines additional keywords variable"
              (expect (boundp 'l-mode-additional-keywords) :to-be t)
              (expect l-mode-additional-keywords :to-be-truthy)
-             (expect (length l-mode-additional-keywords) :to-equal 5))
+             (expect (length l-mode-additional-keywords) :to-equal 6))
     
     (test-it "adds keywords to font-lock when mode is activated"
              (with-temp-buffer
@@ -229,6 +229,82 @@
                (search-forward "string-function")
                (let ((face (get-text-property (match-beginning 0) 'face)))
                  (expect face :not :to-equal 'font-lock-keyword-face)))))
+
+  (describe "ldef function call highlighting"
+    (before-each
+      (setq test-buffer (generate-new-buffer "*l-mode-test*"))
+      (with-current-buffer test-buffer
+        (l-mode)
+        ;; Define some ldef functions to test
+        (eval '(ldef test-add x y -> (+ x y)))
+        (eval '(ldef test-mul x y -> (* x y)))))
+
+    (after-each
+      (when (buffer-live-p test-buffer)
+        (kill-buffer test-buffer))
+      ;; Clean up defined functions
+      (l-generic-cleanup 'test-add)
+      (l-generic-cleanup 'test-mul))
+
+    (test-it "highlights calls to ldef functions"
+             (with-current-buffer test-buffer
+               (insert "(test-add 1 2)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "test-add")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights multiple ldef function calls"
+             (with-current-buffer test-buffer
+               (insert "(test-add 1 2)\n(test-mul 3 4)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "test-add")
+               (let ((face1 (get-text-property (match-beginning 0) 'face)))
+                 (expect face1 :to-equal 'font-lock-keyword-face))
+               (search-forward "test-mul")
+               (let ((face2 (get-text-property (match-beginning 0) 'face)))
+                 (expect face2 :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights nested ldef calls"
+             (with-current-buffer test-buffer
+               (insert "(test-add (test-mul 2 3) 4)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "test-add")
+               (let ((face1 (get-text-property (match-beginning 0) 'face)))
+                 (expect face1 :to-equal 'font-lock-keyword-face))
+               (search-forward "test-mul")
+               (let ((face2 (get-text-property (match-beginning 0) 'face)))
+                 (expect face2 :to-equal 'font-lock-keyword-face))))
+
+    (test-it "doesn't highlight regular function calls"
+             (with-current-buffer test-buffer
+               (insert "(concat \"a\" \"b\")")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "concat")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :not :to-equal 'font-lock-keyword-face))))
+
+    (test-it "doesn't highlight regular functions as ldef"
+             (with-current-buffer test-buffer
+               (insert "(+ 1 2)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "+")
+               ;; + is not an ldef function, so ldefp should return nil
+               (expect (ldefp '+) :to-be nil)))
+
+    (test-it "highlights ldef calls in let bindings"
+             (with-current-buffer test-buffer
+               (insert "(let ((x (test-add 1 2))) x)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "test-add")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face)))))
 
   (describe "backtick highlighting in @doc strings"
     (before-each

@@ -86,6 +86,23 @@
     (or (eq face 'font-lock-doc-face)
         (and (listp face) (memq 'font-lock-doc-face face)))))
 
+(defun l-highlight-ldef-calls (limit)
+  "Font-lock matcher for ldef function calls up to LIMIT.
+Highlights function names at the head of s-expressions if they
+were defined with ldef."
+  (let (match-found)
+    (while (and (not match-found)
+                (re-search-forward "(\\([^][() \t\n]+\\)" limit t))
+      (let ((symbol-name (match-string 1))
+            (start (match-beginning 1))
+            (end (match-end 1)))
+        ;; Check if this symbol is an ldef function
+        (when (and symbol-name
+                   (ldefp (intern symbol-name)))
+          (set-match-data (list start end))
+          (setq match-found t))))
+    match-found))
+
 
 (defvar l-mode-additional-keywords
   `(;; @doc keyword highlighting
@@ -98,6 +115,11 @@
     ("(\\(ldef\\)\\s-+\\([^ \t\n()]+\\)"
      (1 font-lock-keyword-face)  ;; ldef keyword itself
      (2 font-lock-keyword-face)) ;; function name
+
+    ;; ldef function calls highlighting
+    ;; Highlights calls to functions defined with ldef
+    (l-highlight-ldef-calls
+     (0 font-lock-keyword-face))
 
     ;; Strings within ANY docstring (escaped quotes)
     ("\\(\\\\\"\\(?:[^\\\"\\\\]\\|\\\\.\\)*\\\\\"\\)"

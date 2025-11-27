@@ -268,6 +268,17 @@ expressions are handled correctly."
   `(progn (l-generic-doc ',(cadar ldef-exprs) ,docstring)
           ,@ldef-exprs))
 
+(defun ldefp (name)
+  "Return non-nil if NAME is a function defined with ldef.
+Checks if NAME has entries in the generic function registry.
+
+Examples:
+  (ldef my-func x -> (+ x 1))
+  (ldefp 'my-func)  ;; => t
+  (ldefp 'concat)   ;; => nil (built-in function)
+  (ldefp 'when)     ;; => nil (macro)"
+  (not (null (l--get-from-registry name))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Private functions ;;
