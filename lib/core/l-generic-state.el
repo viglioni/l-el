@@ -34,19 +34,21 @@
 This hash table stores all registered methods for generic functions.
 The structure is: fname -> list of method specifications.
 
-Each method specification is a list containing:
-- specificity: numeric score indicating how specific the pattern is
+Each method specification is a struct containing:
+- specificity: string for lexicographic comparison (e.g., \"bb\", \"ab\", \"d0\")
 - arity: number of arguments the method accepts
 - pattern-list: list of patterns for matching arguments
 - body: list of expressions forming the method body
 
-Methods are automatically sorted by specificity (highest first) to ensure
-the most specific patterns are matched before more general ones.
+Methods are automatically sorted by specificity (lexicographically, highest
+first) to ensure the most specific patterns are matched before more general
+ones. The lexicographic approach ensures that multiple category type matches
+never outscore a single primitive type match.
 
 Example registry entry:
-  \='my-func -> ((1100 2 ((x :integer) (y :string)) (body...))
-               (200 2 ((x :number) y) (body...))
-               (1 2 (_ _) (body...)))")
+  \='my-func -> ((\"bb\" 2 ((x :integer) (y :string)) (body...))
+               (\"ab\" 2 ((x :sequence) (y :integer)) (body...))
+               (\"00\" 2 (x y) (body...)))")
 
 (defun l--add-to-registry (name methods)
   "Add item to `l-generic-method-registry'.
@@ -79,7 +81,8 @@ Each method spec contains:
 - `arity': Number of arguments (for dispatch optimization)
 - `body': Code to execute when matched
 - `pattern-list': The actual patterns to match
-- `specificity': Numeric score for pattern matching priority"
+- `specificity': String for lexicographic pattern matching priority
+                 (e.g., \"d\" > \"c\" > \"b\" > \"a\" > \"0\")"
   specificity arity pattern-list body)
 
 

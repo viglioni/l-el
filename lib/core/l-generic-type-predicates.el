@@ -84,6 +84,50 @@ Examples:
   (and (listp obj)
        (cl-every (lambda (elem) (cl-typep elem type-name)) obj)))
 
+(defun l-instanceof (element type)
+  "Check if ELEMENT is an instance of TYPE.
+
+TYPE can be either:
+- A keyword from `l-generic-type-predicates' (e.g., :integer, :string, :list)
+- A struct or class type name for use with `cl-typep' (e.g., 'point, 'my-struct)
+
+Examples:
+  (l-instanceof 42 :integer)           ; => t
+  (l-instanceof \"hello\" :string)     ; => t
+  (l-instanceof '(1 2 3) :list)        ; => t
+
+  (cl-defstruct point x y)
+  (l-instanceof (make-point) 'point)   ; => t
+  (l-instanceof 42 'point)             ; => nil
+
+Returns t if ELEMENT matches TYPE, nil otherwise."
+  (if (keywordp type)
+      ;; Type is a keyword - check in our predicates registry
+      (let ((predicate (cdr (assoc type l-generic-type-predicates))))
+        (if predicate
+            (funcall predicate element)
+          (error "Unknown type keyword: %s" type)))
+    ;; Type is not a keyword - use cl-typep for struct/class types
+    (cl-typep element type)))
+
+(defvar l-generic-primitive-types
+  '(:alist :bool-vector :buffer :char-table :cons :float :function
+    :hash-table :integer :list :null :object :plist :record :string
+    :struct :symbol :vector
+    ;; Aliases
+    :buff :bvector :ctable :fn :int :nil :str)
+  "Primitive/specific types that should match before category types.
+These types are concrete and should have higher specificity than
+category types like :sequence, :array, :number, etc.")
+
+(defvar l-generic-category-types
+  '(:array :callable :instance :number :sequence
+    ;; Aliases
+    :seq)
+  "Category/composite types that match multiple primitive types.
+These have lower specificity than primitive types and should only
+match when no primitive type matches.")
+
 (defvar l-generic-parameterized-type-predicates
   '((:instance_of        . cl-typep)
     (:list_of            . l--list-of-p)

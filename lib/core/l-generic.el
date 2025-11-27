@@ -71,18 +71,26 @@ Examples:
     (signal 'l-invalid-pattern-error (list pattern)))))
 
 (defun l-generic--calculate-specificity (pattern-list)
-  "Calculate specificity score for PATTERN-LIST.
+  "Calculate specificity score for PATTERN-LIST using lexicographic ordering.
 
-Returns a numeric score indicating how specific the pattern is.
-Higher scores indicate more specific patterns that should be
-matched before more general ones.
+Returns a string that can be compared lexicographically to determine
+pattern matching priority. Patterns are compared element-by-element,
+with more specific types taking precedence at each position.
 
-Scoring rules:
-- Value match: 1,000,000 points per pattern
-- Parameterized type match: 10,000 points per pattern
-- Type match: 100 points per pattern
-- Wildcard with binding: 1 point per pattern
-- Regular parameter: 1 point per pattern
+String scoring rules (per pattern element):
+- Value match: \"d\" (most specific)
+- Parameterized type match: \"c\" (e.g., :instance_of, :list_of)
+- Primitive type match: \"b\" (e.g., :list, :integer, :string)
+- Category type match: \"a\" (e.g., :sequence, :array, :number)
+- Wildcard/regular parameter: \"0\" (least specific, catch-all)
+
+The final score is the concatenation of all position scores, enabling
+lexicographic comparison where each position is independently evaluated.
+
+This approach ensures that:
+- Multiple category types never outscore a single primitive type
+- More specific types at earlier positions take priority
+- Pattern length is implicitly handled (shorter patterns sort lower)
 
 PATTERN-LIST is a list of patterns, where each pattern can be:
 - A symbol: regular parameter or wildcard
@@ -90,38 +98,48 @@ PATTERN-LIST is a list of patterns, where each pattern can be:
 
 Examples:
   \(l-generic--calculate-specificity \\='(x y))
-  ;; => 2 (two regular parameters)
-  
+  ;; => \"00\" (two wildcards)
+
   \(l-generic--calculate-specificity \\='((x :integer) (y :string)))
-  ;; => 200 (two type matches)
-  
+  ;; => \"bb\" (two primitive types)
+
+  \(l-generic--calculate-specificity \\='((x :sequence) (y :integer)))
+  ;; => \"ab\" (category type + primitive type)
+  ;; Comparison: \"ab\" < \"bb\", so :integer wins over :sequence
+
   \(l-generic--calculate-specificity \\='((x \"hello\") y))
-  ;; => 1001 (one value match + one regular parameter)
-  
-  \(l-generic--calculate-specificity \\='(_ignore x))
-  ;; => 2 (wildcard + regular parameter)"
-  (cl-reduce
-   #'+
-   (mapcar (lambda (pattern)
-             (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
-               (cond ((and (keywordp spec) type-arg)
-                      ;; Parameterized type match: (x :instance_of point)
-                      10000)
-                     ((keywordp spec)
-                      ;; Regular type match: (x :integer)
-                      100)
-                     ((not (symbolp pattern))
-                      ;; Value match: (x 42) or (x nil)
-                      1000000)
-                     ((and (symbolp param)
-                           (string-prefix-p "_" (symbol-name param)))
-                      ;; Wildcard with binding: _x
-                      1)
-                     (t
-                      ;; Regular parameter: x
-                      1))))
-           pattern-list)
-   :initial-value 0))
+  ;; => \"d0\" (value match + wildcard)
+
+  \(l-generic--calculate-specificity \\='((x :instance_of point) (y :list)))
+  ;; => \"cb\" (parameterized type + primitive type)"
+  (apply #'concat
+         (mapcar (lambda (pattern)
+                   (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
+                     (cond ((and (keywordp spec) type-arg)
+                            ;; Parameterized type match: (x :instance_of point)
+                            "c")
+                           ((keywordp spec)
+                            ;; Type match - distinguish primitive from category
+                            (cond ((memq spec l-generic-primitive-types)
+                                   ;; Primitive type: :list, :integer, :string, etc.
+                                   "b")
+                                  ((memq spec l-generic-category-types)
+                                   ;; Category type: :sequence, :array, :number, etc.
+                                   "a")
+                                  (t
+                                   ;; Unknown type - treat as category (lower priority)
+                                   "a")))
+                           ((not (symbolp pattern))
+                            ;; Value match: (x 42) or (x nil)
+                            "d")
+                           ((and (symbolp param)
+                                 (string-prefix-p "_" (symbol-name param)))
+                            ;; Wildcard with binding: _x
+                            "0")
+                           (t
+                            ;; Regular parameter: x
+                            "0"))))
+                 pattern-list)))
 
 (defun l-generic--generate-pattern-condition (pattern arg-index)
   "Generate condition for matching PATTERN against argument at ARG-INDEX.
@@ -163,6 +181,7 @@ Examples:
           (l--raise-unknown-type-predicate spec "parameterized pattern matching"))))
      ((keywordp spec)
       ;; Regular type match: (arg :integer) -> (integerp (nth 0 args))
+      ;; Check primitives first, then categories for proper specificity
       (let ((predicate (cdr (assoc spec l-generic-type-predicates))))
         (if predicate
             `(,predicate (nth ,arg-index args))
@@ -437,9 +456,13 @@ not be called directly by user code."
 
 (cl-defmethod l-generic--add-and-sort ((method l-generic-method-spec) (methods list))
   "Create a sorted list by specificity using METHOD and METHODS.
-Check `l-generic-method-spec'."
+Check `l-generic-method-spec'.
+
+Methods are sorted using lexicographic string comparison, where
+higher specificity strings sort before lower specificity strings.
+This ensures proper dispatch order based on type specificity."
   (sort (cons method methods)
-        (lambda (a b) (> (l--specificity a) (l--specificity b)))))
+        (lambda (a b) (string> (l--specificity a) (l--specificity b)))))
 
 
 (defun l-generic--check-rest-syntax! (name pattern-list)

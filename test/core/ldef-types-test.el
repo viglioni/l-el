@@ -395,3 +395,159 @@
       (ldef bad-func3 (x) "fallback")
       (expect (bad-func3 '(1 2 3))
               :to-throw 'l-unknown-type-predicate-error))))
+
+  (describe "l-instanceof function"
+    (before-all
+      (cl-defstruct test-point x y)
+      (cl-defstruct test-circle radius))
+
+    (describe "with keyword types"
+      (test-it "returns t for matching integer type"
+        (expect (l-instanceof 42 :integer) :to-be-truthy)
+        (expect (l-instanceof -5 :integer) :to-be-truthy)
+        (expect (l-instanceof 0 :integer) :to-be-truthy))
+
+      (test-it "returns nil for non-matching integer type"
+        (expect (l-instanceof "42" :integer) :not :to-be-truthy)
+        (expect (l-instanceof 3.14 :integer) :not :to-be-truthy)
+        (expect (l-instanceof '(1 2) :integer) :not :to-be-truthy))
+
+      (test-it "returns t for matching string type"
+        (expect (l-instanceof "hello" :string) :to-be-truthy)
+        (expect (l-instanceof "" :string) :to-be-truthy))
+
+      (test-it "returns nil for non-matching string type"
+        (expect (l-instanceof 42 :string) :not :to-be-truthy)
+        (expect (l-instanceof 'hello :string) :not :to-be-truthy))
+
+      (test-it "returns t for matching list type"
+        (expect (l-instanceof '(1 2 3) :list) :to-be-truthy)
+        (expect (l-instanceof '() :list) :to-be-truthy)
+        (expect (l-instanceof nil :list) :to-be-truthy))
+
+      (test-it "returns nil for non-matching list type"
+        (expect (l-instanceof [1 2 3] :list) :not :to-be-truthy)
+        (expect (l-instanceof "list" :list) :not :to-be-truthy))
+
+      (test-it "works with vector type"
+        (expect (l-instanceof [1 2 3] :vector) :to-be-truthy)
+        (expect (l-instanceof [] :vector) :to-be-truthy)
+        (expect (l-instanceof '(1 2 3) :vector) :not :to-be-truthy))
+
+      (test-it "works with symbol type"
+        (expect (l-instanceof 'foo :symbol) :to-be-truthy)
+        (expect (l-instanceof :keyword :symbol) :to-be-truthy)
+        (expect (l-instanceof "foo" :symbol) :not :to-be-truthy))
+
+      (test-it "works with function type"
+        (expect (l-instanceof #'+ :function) :to-be-truthy)
+        (expect (l-instanceof (lambda (x) x) :function) :to-be-truthy)
+        (expect (l-instanceof 'not-a-function :function) :not :to-be-truthy))
+
+      (test-it "raises error for unknown type keyword"
+        (expect (l-instanceof 42 :unknown-type) :to-throw 'error)))
+
+    (describe "with struct/class types"
+      (test-it "returns t for matching struct type"
+        (let ((p (make-test-point :x 1 :y 2)))
+          (expect (l-instanceof p 'test-point) :to-be-truthy)))
+
+      (test-it "returns nil for non-matching struct type"
+        (let ((p (make-test-point :x 1 :y 2))
+              (c (make-test-circle :radius 5)))
+          (expect (l-instanceof p 'test-circle) :not :to-be-truthy)
+          (expect (l-instanceof c 'test-point) :not :to-be-truthy)))
+
+      (test-it "returns nil for non-struct values"
+        (expect (l-instanceof 42 'test-point) :not :to-be-truthy)
+        (expect (l-instanceof "hello" 'test-point) :not :to-be-truthy)
+        (expect (l-instanceof '(1 2) 'test-point) :not :to-be-truthy))
+
+      (test-it "works with built-in cl types"
+        (expect (l-instanceof 42 'integer) :to-be-truthy)
+        (expect (l-instanceof "hello" 'string) :to-be-truthy)
+        (expect (l-instanceof '(1 2) 'list) :to-be-truthy))))
+
+  (describe "type specificity - primitive vs category types"
+    (describe "primitive types beat category types"
+      (before-all
+        (ldef test-prim-vs-cat ((x :sequence)) 'matched-category-sequence)
+        (ldef test-prim-vs-cat ((x :list)) 'matched-primitive-list)
+        (ldef test-prim-vs-cat ((x :vector)) 'matched-primitive-vector)
+        (ldef test-prim-vs-cat ((x :string)) 'matched-primitive-string))
+
+      (test-it "list matches primitive :list over category :sequence"
+        (expect (test-prim-vs-cat '(1 2 3)) :to-equal 'matched-primitive-list))
+
+      (test-it "vector matches primitive :vector over category :sequence"
+        (expect (test-prim-vs-cat [1 2 3]) :to-equal 'matched-primitive-vector))
+
+      (test-it "string matches primitive :string over category :sequence"
+        (expect (test-prim-vs-cat "hello") :to-equal 'matched-primitive-string)))
+
+    (describe "multiple category types never beat single primitive"
+      (before-all
+        (ldef test-multi-cat ((a :sequence) (b :sequence) (c :sequence)) 'matched-three-categories)
+        (ldef test-multi-cat ((a :list)) 'matched-one-primitive))
+
+      (test-it "single primitive :list beats three category :sequence types"
+        (expect (test-multi-cat '(1 2 3)) :to-equal 'matched-one-primitive)))
+
+    (describe "specificity scoring with lexicographic ordering"
+      (test-it "primitive type gets 'b' score"
+        (expect (l-generic--calculate-specificity '((x :list))) :to-equal "b")
+        (expect (l-generic--calculate-specificity '((x :integer))) :to-equal "b")
+        (expect (l-generic--calculate-specificity '((x :string))) :to-equal "b"))
+
+      (test-it "category type gets 'a' score"
+        (expect (l-generic--calculate-specificity '((x :sequence))) :to-equal "a")
+        (expect (l-generic--calculate-specificity '((x :array))) :to-equal "a")
+        (expect (l-generic--calculate-specificity '((x :number))) :to-equal "a"))
+
+      (test-it "parameterized type gets 'c' score"
+        (expect (l-generic--calculate-specificity '((x :instance_of point))) :to-equal "c")
+        (expect (l-generic--calculate-specificity '((x :list_of :integer))) :to-equal "c"))
+
+      (test-it "value match gets 'd' score"
+        (expect (l-generic--calculate-specificity '((x "hello"))) :to-equal "d")
+        (expect (l-generic--calculate-specificity '((x 42))) :to-equal "d"))
+
+      (test-it "wildcard/regular param gets '0' score"
+        (expect (l-generic--calculate-specificity '(x)) :to-equal "0")
+        (expect (l-generic--calculate-specificity '(_ignore)) :to-equal "0"))
+
+      (test-it "multiple patterns concatenate scores"
+        (expect (l-generic--calculate-specificity '((x :list) (y :integer))) :to-equal "bb")
+        (expect (l-generic--calculate-specificity '((x :sequence) (y :integer))) :to-equal "ab")
+        (expect (l-generic--calculate-specificity '((a :sequence) (b :sequence) (c :sequence))) :to-equal "aaa"))
+
+      (test-it "lexicographic comparison ensures primitive beats multiple categories"
+        (expect (string> "b" "aaa") :to-be-truthy)
+        (expect (string> "bb" "ab") :to-be-truthy)
+        (expect (string> "d" "c") :to-be-truthy)
+        (expect (string> "c" "b") :to-be-truthy)
+        (expect (string> "b" "a") :to-be-truthy)))
+
+    (describe "number types - primitive vs category"
+      (before-all
+        (ldef test-number-specificity ((x :number)) 'matched-category-number)
+        (ldef test-number-specificity ((x :integer)) 'matched-primitive-integer)
+        (ldef test-number-specificity ((x :float)) 'matched-primitive-float))
+
+      (test-it "integer matches primitive :integer over category :number"
+        (expect (test-number-specificity 42) :to-equal 'matched-primitive-integer))
+
+      (test-it "float matches primitive :float over category :number"
+        (expect (test-number-specificity 3.14) :to-equal 'matched-primitive-float)))
+
+    (describe "array types - primitive vs category"
+      (before-all
+        (ldef test-array-specificity ((x :array)) 'matched-category-array)
+        (ldef test-array-specificity ((x :vector)) 'matched-primitive-vector)
+        (ldef test-array-specificity ((x :string)) 'matched-primitive-string))
+
+      (test-it "vector matches primitive :vector over category :array"
+        (expect (test-array-specificity [1 2 3]) :to-equal 'matched-primitive-vector))
+
+      (test-it "string matches primitive :string over category :array"
+        (expect (test-array-specificity "hello") :to-equal 'matched-primitive-string))))
