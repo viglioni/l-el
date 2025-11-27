@@ -273,7 +273,7 @@ expressions are handled correctly."
   "Return non-nil if NAME is a function defined with ldef.
 Checks if NAME has entries in the generic function registry.
 
-since: NEXT
+since: 1.0.0
 
 Examples:
   (ldef my-func x -> (+ x 1))

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+* 1.0.0 - 2025-11-27
+
 ** Breaking Changes
 - =ldef= now requires arrow (=->=) syntax to separate arguments from body
   - Old syntax: =(ldef add (x y) (+ x y))=

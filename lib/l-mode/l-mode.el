@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Laura Viglioni
 
 ;; Author: Laura Viglioni
-;; Version: NEXT
+;; Version: 1.0.0
 ;; Package-Requires: ((emacs "29"))
 ;; Keywords: lisp, functional, programming, utilities, mode
 ;; URL: https://github.com/viglioni/l-el
@@ -91,7 +91,7 @@
 Highlights function names at the head of s-expressions if they
 were defined with ldef.
 
-since: NEXT"
+since: 1.0.0"
   (let (match-found)
     (while (and (not match-found)
                 (re-search-forward "(\\([^][() \t\n]+\\)" limit t))

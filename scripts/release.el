@@ -24,28 +24,29 @@
       (setq new-version (format "%d.%d.%d" major minor (1+ patch))))
      (t (error "Unknown increment type: %s" increment-type)))
     
-    ;; Confirm versions
-    (unless (y-or-n-p (format "Confirm current version: %s?" current-version))
-      (shell-command "git stash")
-      (user-error "Release aborted"))
-    
-    (unless (y-or-n-p (format "Confirm new version: %s?" new-version))
-      (shell-command "git stash")
-      (user-error "Release aborted"))
-    
+    ;; Confirm versions (only in interactive mode)
+    (unless noninteractive
+      (unless (y-or-n-p (format "Confirm current version: %s?" current-version))
+        (shell-command "git stash")
+        (user-error "Release aborted"))
+
+      (unless (y-or-n-p (format "Confirm new version: %s?" new-version))
+        (shell-command "git stash")
+        (user-error "Release aborted")))
+
     (message "Preparing release: %s -> %s" current-version new-version)
     
-    ;; Update "since NEXT" and "since: NEXT" to new version in all .el files
+    ;; Update "since NEXT" and "since: 1.0.0" to new version in all .el files
     (dolist (file (directory-files-recursively default-directory "\\.el$"))
       (with-temp-buffer
         (insert-file-contents file)
         (let ((modified nil))
           (goto-char (point-min))
-          (while (search-forward ";; since NEXT" nil t)
+          (while (search-forward ";; since 1.0.0" nil t)
             (replace-match (format ";; since %s" new-version))
             (setq modified t))
           (goto-char (point-min))
-          (while (search-forward "since: NEXT" nil t)
+          (while (search-forward "since: 1.0.0" nil t)
             (replace-match (format "since: %s" new-version))
             (setq modified t))
           (when modified
@@ -60,7 +61,7 @@
         (let ((modified nil))
           (goto-char (point-min))
           ;; Replace "Version: NEXT" with new version
-          (when (re-search-forward ";; Version: NEXT" nil t)
+          (when (re-search-forward ";; Version: 1.0.0" nil t)
             (replace-match (format ";; Version: %s" new-version))
             (setq modified t))
           ;; Also update numeric versions in main files
@@ -125,33 +126,37 @@
         (message "Updated %s" changelog-file)))
     
     ;; Commit the changes
-    (unless (y-or-n-p "Commit changelog and version updates?")
-      (shell-command "git stash")
-      (user-error "Release aborted"))
+    (unless noninteractive
+      (unless (y-or-n-p "Commit changelog and version updates?")
+        (shell-command "git stash")
+        (user-error "Release aborted")))
     (shell-command (format "git add -A && git commit -m \"Release version %s\"" new-version))
     (message "Changes committed")
     
     ;; Create git tag
-    (unless (y-or-n-p (format "Create tag %s?" new-version))
-      (shell-command "git stash")
-      (user-error "Release aborted"))
+    (unless noninteractive
+      (unless (y-or-n-p (format "Create tag %s?" new-version))
+        (shell-command "git stash")
+        (user-error "Release aborted")))
     (shell-command (format "git tag -a %s -m \"Release %s\"" new-version new-version))
     (message "Tagged version %s" new-version)
     
     ;; Push changes to remote
-    (unless (y-or-n-p "Push changes to remote?")
-      (shell-command "git stash")
-      (user-error "Release aborted"))
+    (unless noninteractive
+      (unless (y-or-n-p "Push changes to remote?")
+        (shell-command "git stash")
+        (user-error "Release aborted")))
     (shell-command "git push")
     (message "Changes pushed to remote")
     
     ;; Push tag to remote
-    (unless (y-or-n-p (format "Push tag %s to remote?" new-version))
-      (shell-command "git stash")
-      (user-error "Release aborted"))
+    (unless noninteractive
+      (unless (y-or-n-p (format "Push tag %s to remote?" new-version))
+        (shell-command "git stash")
+        (user-error "Release aborted")))
     (shell-command (format "git push origin %s" new-version))
     (message "Tag %s pushed to remote" new-version)
-    
+
     (message "Release %s completed!" new-version)))
 
 (provide 'release)
