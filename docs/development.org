@@ -81,6 +81,65 @@ l-el/
 └── makefile              # Build automation
 #+end_example
 
+* Dependency tree
+
+This diagram shows the internal dependency structure of l.el, visualized as a directed graph.
+
+#+begin_src
+                                    ┌──────────┐
+                                    │   l.el   │
+                                    └─────┬────┘
+                   ┌──────────────────────┼──────────────────────┐
+                   │                      │                      │
+                   ▼                      ▼                      ▼
+            ┌─────────────┐        ┌──────────┐          ┌──────────┐
+            │ l-load-path │        │  l-main  │          │ l-syntax │
+            └─────────────┘        └─────┬────┘          └─────┬────┘
+                                    ┌────┴────┐           ┌─────┴─────┐
+                                    │         │           │           │
+                                    ▼         ▼           ▼           ▼
+                             ┌──────────┐ ┌───────────┐ ┌────────┐ ┌────────┐
+                             │l-generic │ │l-exception│ │ l-main │ │l-mode  │
+                             │          │ │           │ └────────┘ └────────┘
+                             └─────┬────┘ └─────┬─────┘
+                        ┌──────────┼──────┐     │
+                        │          │      │     │
+                        ▼          ▼      ▼     ▼
+                ┌───────────┐ ┌────────┐ ┌───────────┐
+                │l-generic- │ │l-gener-│ │l-exception│
+                │   type-   │ │ ic-    │ │           │
+                │predicates │ │ state  │ └─────┬─────┘
+                └─────┬─────┘ └───┬────┘       │
+                  ┌───┴───┐       │            │
+                  │       │       │            │
+                  ▼       ▼       ▼            ▼
+             ┌──────┐ ┌───────────┐ ┌────────┐ ┌────────┐
+             │eieio │ │l-exception│ │ cl-lib │ │ cl-lib │
+             │      │ │           │ └────────┘ └────────┘
+             └──────┘ └─────┬─────┘
+                            │
+                            ▼
+                        ┌────────┐
+                        │ cl-lib │
+                        └────────┘
+
+                                ┌────────────┐
+                                │ l-function │
+                                └──────┬─────┘
+                           ┌───────────┼────────┐
+                           │           │        │
+                           ▼           ▼        ▼
+                      ┌────────┐  ┌────────┐ ┌─────┐
+                      │ l-main │  │ cl-lib │ │ seq │
+                      └────────┘  └────────┘ └─────┘
+
+Legend:
+  External dependencies: cl-lib, eieio, seq (all built-in to Emacs 29+)
+  Core modules: l-main, l-generic, l-exception
+  Type system: l-generic-type-predicates, l-generic-state
+  Extensions: l-syntax, l-mode, l-function
+#+end_src
+
 * Coding conventions
 
 ** File headers
