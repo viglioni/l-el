@@ -33,7 +33,7 @@
     (test-it "defines additional keywords variable"
              (expect (boundp 'l-mode-additional-keywords) :to-be t)
              (expect l-mode-additional-keywords :to-be-truthy)
-             (expect (length l-mode-additional-keywords) :to-equal 4))
+             (expect (length l-mode-additional-keywords) :to-equal 5))
     
     (test-it "adds keywords to font-lock when mode is activated"
              (with-temp-buffer
@@ -104,6 +104,131 @@
                (search-forward "@doc")
                (let ((face (get-text-property (match-beginning 0) 'face)))
                  (expect face :to-equal 'font-lock-constant-face)))))
+
+  (describe "ldef function name highlighting"
+    (before-each
+      (setq test-buffer (generate-new-buffer "*l-mode-test*"))
+      (with-current-buffer test-buffer
+        (l-mode)))
+
+    (after-each
+      (when (buffer-live-p test-buffer)
+        (kill-buffer test-buffer)))
+
+    (test-it "highlights ldef keyword"
+             (with-current-buffer test-buffer
+               (insert "(ldef my-function x y -> (+ x y))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "ldef")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights function name after ldef"
+             (with-current-buffer test-buffer
+               (insert "(ldef my-function x y -> (+ x y))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "my-function")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights function names with hyphens"
+             (with-current-buffer test-buffer
+               (insert "(ldef my-cool-function x -> (* x 2))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "my-cool-function")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights function names with numbers"
+             (with-current-buffer test-buffer
+               (insert "(ldef add3 x y z -> (+ x y z))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "add3")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights multiple ldef definitions"
+             (with-current-buffer test-buffer
+               (insert "(ldef fib (n 0) -> 0)\n(ldef fib (n 1) -> 1)\n(ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "fib")
+               (let ((face1 (get-text-property (match-beginning 0) 'face)))
+                 (expect face1 :to-equal 'font-lock-keyword-face))
+               (search-forward "fib")
+               (let ((face2 (get-text-property (match-beginning 0) 'face)))
+                 (expect face2 :to-equal 'font-lock-keyword-face))
+               (search-forward "fib")
+               (let ((face3 (get-text-property (match-beginning 0) 'face)))
+                 (expect face3 :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights ldef with pattern matching"
+             (with-current-buffer test-buffer
+               (insert "(ldef process (x :integer) -> (* x 2))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "process")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights ldef with value matching"
+             (with-current-buffer test-buffer
+               (insert "(ldef greet (name \"Alice\") -> \"Hello, Alice!\")")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "greet")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights ldef with rest parameters"
+             (with-current-buffer test-buffer
+               (insert "(ldef sum (nums :rest) -> (apply '+ nums))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "sum")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights ldef with @doc annotation"
+             (with-current-buffer test-buffer
+               (insert "@doc \"Calculate result\"\n(ldef fibonacci (n 0) -> 0)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "ldef")
+               (forward-whitespace 1)
+               (let ((face (get-text-property (point) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "handles ldef with multiline body"
+             (with-current-buffer test-buffer
+               (insert "(ldef complex-fn x y ->\n  (let ((result (+ x y)))\n    (* result 2)))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "complex-fn")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "doesn't highlight ldef in comments"
+             (with-current-buffer test-buffer
+               (insert ";; (ldef commented-function x -> x)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "commented-function")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :not :to-equal 'font-lock-keyword-face))))
+
+    (test-it "doesn't highlight ldef in strings"
+             (with-current-buffer test-buffer
+               (insert "\"(ldef string-function x -> x)\"")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "string-function")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :not :to-equal 'font-lock-keyword-face)))))
 
   (describe "backtick highlighting in @doc strings"
     (before-each

@@ -93,12 +93,18 @@
      (1 font-lock-constant-face)
      (2 font-lock-doc-face))
 
+    ;; ldef function name highlighting
+    ;; Matches: (ldef FUNCTION-NAME ...anything... -> ...body...)
+    ("(\\(ldef\\)\\s-+\\([^ \t\n()]+\\)"
+     (1 font-lock-keyword-face)  ;; ldef keyword itself
+     (2 font-lock-keyword-face)) ;; function name
+
     ;; Strings within ANY docstring (escaped quotes)
     ("\\(\\\\\"\\(?:[^\\\"\\\\]\\|\\\\.\\)*\\\\\"\\)"
      (1 (when (save-match-data (l-mode-point-in-docstring-p))
           font-lock-string-face)
         prepend))
-    
+
     (l-highlight-sexps-in-docstring
      (0 (when (save-match-data (l-mode-point-in-docstring-p))
           font-lock-variable-name-face)

@@ -22,6 +22,10 @@ All notable changes to this project will be documented in this file.
 - Categorized types into =l-generic-primitive-types= and =l-generic-category-types= for proper specificity handling
 - Enhanced =l-raise= to support =invalid-rest-parameter= error type
 - Improved =&rest= validation in =ldef= to detect misuse in nested argument patterns
+- Enhanced =l-mode= syntax highlighting:
+  - =ldef= function names now highlighted with =font-lock-keyword-face= (bold purple/magenta)
+  - Makes function definitions highly visible and easy to spot in code
+  - Both the =ldef= keyword and function name use the same prominent highlighting
 
 * 0.5.0 - 2025-11-26
 
