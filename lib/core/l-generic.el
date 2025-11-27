@@ -43,32 +43,53 @@
   "Parse PATTERN and return (param-name type-keyword type-arg).
 
 PATTERN can be:
-- A symbol: returns (pattern nil nil)
-- A 2-element list (param spec): returns (param spec nil)
-- A 3-element list (param type arg): returns (param type arg)
+- A plain symbol: parameter binding → (pattern nil nil)
+- A list (param spec [type-arg]): type/rest matching → (param spec type-arg)
+- A literal value or quoted form: value matching → (gensym value nil)
+
+Direct value matching is supported:
+  (ldef fib 0 -> 0)           ;; matches when arg equals 0
+  (ldef fib n -> ...)         ;; binds n (any value)
+  (ldef foo (x :integer) -> ...) ;; type matches integer
 
 Examples:
   (l-generic--parse-pattern 'x)
-  ;; => (x nil nil)
+  ;; => (x nil nil)  ; parameter binding
 
   (l-generic--parse-pattern '(x :integer))
-  ;; => (x :integer nil)
+  ;; => (x :integer nil)  ; type match
 
   (l-generic--parse-pattern '(x :instance_of point))
-  ;; => (x :instance_of point)
+  ;; => (x :instance_of point)  ; parameterized type
 
-  (l-generic--parse-pattern '(x \"hello\"))
-  ;; => (x \"hello\" nil)"
+  (l-generic--parse-pattern 0)
+  ;; => (l--generated-param-0 0 nil)  ; value match for 0
+
+  (l-generic--parse-pattern \\='foo)
+  ;; => (l--generated-param-1 \\='foo nil)  ; value match for symbol foo"
   (cond
+   ;; Plain symbol → parameter binding
    ((symbolp pattern)
     (list pattern nil nil))
-   ((listp pattern)
+
+   ;; List → type/rest matching: (param spec [type-arg])
+   ((and (listp pattern) (not (eq (car pattern) 'quote)))
     (let ((param (car pattern))
           (spec (cadr pattern))
           (type-arg (caddr pattern)))
       (list param spec type-arg)))
+
+   ;; Anything else (literals, quoted forms) → value matching
+   ;; Return as a list (generated-param value nil) so it gets stored
+   ;; in pattern-list correctly for value matching
    (t
-    (signal 'l-invalid-pattern-error (list pattern)))))
+    ;; For pattern-list storage, we need the original pattern wrapped
+    ;; But parse-pattern returns (param spec type-arg), and the caller
+    ;; will use this to build the pattern-list entry.
+    ;; The pattern-list needs to contain the original form for matching.
+    ;; So we need to return metadata that tells the caller this is a value match.
+    (let ((generated-param (gensym "l--match-")))
+      (list generated-param pattern nil)))))
 
 (defun l-generic--calculate-specificity (pattern-list)
   "Calculate specificity score for PATTERN-LIST using lexicographic ordering.
@@ -173,6 +194,13 @@ Examples:
      ((eq spec :rest)
       ;; Rest parameters always match (handled specially)
       t)
+     ;; Check for value match FIRST (before type checking)
+     ;; Value match: pattern is a list and param name is generated (starts with l--match-)
+     ((and (not (symbolp pattern))
+           (symbolp param)
+           (string-prefix-p "l--match-" (symbol-name param)))
+      ;; Value match: (l--match-123 :success) or (l--match-456 42)
+      `(equal (nth ,arg-index args) ,spec))
      ((and (keywordp spec) type-arg)
       ;; Parameterized type match: (arg :instance_of point) -> (cl-typep (nth 0 args) 'point)
       (let ((predicate (cdr (assoc spec l-generic-parameterized-type-predicates))))
@@ -581,11 +609,35 @@ BODY is the function body to execute when pattern matches."
       (when (cl-position '&rest args)
         (signal 'l-invalid-rest-parameter-error
                 (list name "Use (param :rest) instead of &rest")))
-      
-      ;; Regular fixed-arity function
-      `(progn
-         (l-generic--add-method ',name ,(length args) ',args ',body)
-         ',name))
+
+      ;; Transform args to wrap value-match patterns
+      ;; This converts: (ldef foo x 0 :bar 'baz nil t (y :int) -> ...)
+      ;; Into pattern-list: (x (gensym 0) (gensym :bar) (gensym 'baz) (gensym nil) (gensym t) (y :int))
+      (let ((transformed-args
+             (mapcar (lambda (arg)
+                       (cond
+                        ;; Special symbols nil and t → value match
+                        ;; Must check BEFORE listp since nil is both a symbol and a list
+                        ;; (treating them as parameters would shadow constants)
+                        ((or (eq arg nil) (eq arg t))
+                         (list (gensym "l--match-") arg))
+                        ;; List starting with quote → value match for quoted symbol
+                        ((and (listp arg) (eq (car arg) 'quote))
+                         (list (gensym "l--match-") arg))
+                        ;; List (but not quote) → type/rest matching, keep as-is
+                        ((listp arg) arg)
+                        ;; Keyword → value match
+                        ((keywordp arg)
+                         (list (gensym "l--match-") arg))
+                        ;; Plain symbol → parameter binding, keep as-is
+                        ((symbolp arg) arg)
+                        ;; Anything else (numbers, strings, etc.) → value match
+                        (t (list (gensym "l--match-") arg))))
+                     args)))
+        ;; Regular fixed-arity function
+        `(progn
+           (l-generic--add-method ',name ,(length args) ',transformed-args ',body)
+           ',name)))
 
 (cl-defmethod l-generic-doc ((fname symbol) (docstring string))
   "Add DOCSTRING to FNAME defined with `ldef'."

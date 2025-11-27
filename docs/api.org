@@ -79,8 +79,8 @@ This macro provides Elixir-style documentation annotations for =ldef= functions.
 #+begin_src emacs-lisp
 @doc "Calculate the nth Fibonacci number.
 This implementation uses pattern matching for base cases."
-(ldef fib (n 0) -> 0)
-(ldef fib (n 1) -> 1)
+(ldef fib 0 -> 0)
+(ldef fib 1 -> 1)
 (ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))
 
 @doc "Add two numbers together."
@@ -231,9 +231,11 @@ Arguments before =->= are parameter patterns. Body follows after =->= .
 Arguments support:
 - Regular parameters: =arg= - matches any value, binds to =arg=
 - Wildcards: =_= or =_name= - matches any value, conventionally ignored
+- Direct value matches: =value= - matches when argument equals =value= (numbers, strings, keywords, quoted symbols, =nil=, =t=, vectors, lists)
 - Type matches: =(arg :type)= - matches when =arg= satisfies the type predicate
-- Value matches: =(arg value)= - matches when =arg= equals =value=
 - Rest parameter: =(arg :rest)= - collects remaining arguments as a list (must be last)
+
+*Note:* Lists in patterns =(...)= always indicate type matching or rest parameters. To match literal list values, use quoted forms: ='(1 2 3)=.
 
 *** Method Specificity
 
@@ -247,24 +249,48 @@ The method with the highest total specificity is called first.
 
 *** Pattern Matching Examples
 
-**** Basic value matching:
+**** Direct value matching:
 #+begin_src emacs-lisp
-(ldef fib (n 0) -> 0)                    ;; matches when n = 0
-(ldef fib (n 1) -> 1)                    ;; matches when n = 1
+;; Numbers
+(ldef fib 0 -> 0)                        ;; matches when arg = 0
+(ldef fib 1 -> 1)                        ;; matches when arg = 1
 (ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
 
 (fib 10)  ;; => 55
-#+end_src
 
-**** String and symbol matching:
-#+begin_src emacs-lisp
-(ldef greet (name "Alice") -> "Hello, Alice!")  ;; matches "Alice"
-(ldef greet (name "Bob") -> "Hey, Bob!")        ;; matches "Bob"
+;; Strings
+(ldef greet "Alice" -> "Hello, Alice!")  ;; matches "Alice"
+(ldef greet "Bob" -> "Hey, Bob!")        ;; matches "Bob"
 (ldef greet name -> (concat "Hi, " name "!"))   ;; general case
 
 (greet "Alice")  ;; => "Hello, Alice!"
 (greet "Bob")    ;; => "Hey, Bob!"
 (greet "Carol")  ;; => "Hi, Carol!"
+
+;; Keywords
+(ldef handle-status :success -> "OK")
+(ldef handle-status :error -> "Failed")
+(ldef handle-status status -> (format "Unknown: %s" status))
+
+(handle-status :success)  ;; => "OK"
+(handle-status :error)    ;; => "Failed"
+(handle-status :warning)  ;; => "Unknown: :warning"
+
+;; Quoted symbols
+(ldef parse-sym 'nil -> "nil symbol")
+(ldef parse-sym 'foo -> "foo symbol")
+(ldef parse-sym x -> (format "other: %s" x))
+
+(parse-sym 'nil)  ;; => "nil symbol"
+(parse-sym 'bar)  ;; => "other: bar"
+
+;; Booleans and nil
+(ldef handle-bool nil -> "got nil")
+(ldef handle-bool t -> "got true")
+(ldef handle-bool x -> "got other")
+
+(handle-bool nil)  ;; => "got nil"
+(handle-bool t)    ;; => "got true"
 #+end_src
 
 **** Type matching:
@@ -282,33 +308,47 @@ The method with the highest total specificity is called first.
 
 **** Multiple parameters with patterns:
 #+begin_src emacs-lisp
-(ldef calc (op '+) x y -> (+ x y))
-(ldef calc (op '-) x y -> (- x y))
-(ldef calc (op '*) x y -> (* x y))
+;; Mix direct values with regular parameters
+(ldef calc '+ x y -> (+ x y))
+(ldef calc '- x y -> (- x y))
+(ldef calc '* x y -> (* x y))
 (ldef calc _op _x _y -> (error "Unknown operation"))
 
 (calc '+ 10 5)  ;; => 15
 (calc '- 10 5)  ;; => 5
 (calc '/ 10 5)  ;; => error
+
+;; Mix direct values with type constraints
+(ldef complex-match 0 'start (x :integer) -> (format "Special: x=%d" x))
+(ldef complex-match n sym (val :integer) -> (format "General: n=%s sym=%s val=%d" n sym val))
+(ldef complex-match n sym val -> (format "Fallback: n=%s sym=%s val=%s" n sym val))
+
+(complex-match 0 'start 42)   ;; => "Special: x=42"
+(complex-match 5 'foo 10)     ;; => "General: n=5 sym=foo val=10"
+(complex-match 5 'foo "bar")  ;; => "Fallback: n=5 sym=foo val=bar"
 #+end_src
 
 **** Complex data structure matching:
 #+begin_src emacs-lisp
-;; Alists
-(ldef handle-config (cfg '((debug . t))) -> "debug mode")
+;; Quoted lists (alists, plists, regular lists)
+(ldef handle-config '((debug . t)) -> "debug mode")
 (ldef handle-config cfg -> "normal mode")
 
-;; Plists
-(ldef handle-opts (opts '(:verbose t)) -> "verbose")
+(ldef handle-opts '(:verbose t) -> "verbose")
 (ldef handle-opts opts -> "quiet")
 
+(ldef handle-list '(1 2 3) -> "specific list")
+(ldef handle-list '() -> "empty list")
+(ldef handle-list lst -> "other list")
+
 ;; Vectors
-(ldef process-vec (v []) -> "empty")
-(ldef process-vec (v [1 2 3]) -> "one-two-three")
+(ldef process-vec [] -> "empty")
+(ldef process-vec [1 2 3] -> "one-two-three")
 (ldef process-vec v -> "other")
 
 ;; Nested structures
-(ldef handle (data '(:type list :items ((a . b)))) -> "matched")
+(ldef handle '(:type list :items ((a . b))) -> "matched nested")
+(ldef handle data -> "other data")
 #+end_src
 
 **** Wildcards:

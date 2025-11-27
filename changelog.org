@@ -9,8 +9,20 @@ All notable changes to this project will be documented in this file.
   - Old syntax: =(ldef add (x y) (+ x y))=
   - New syntax: =(ldef add x y -> (+ x y))=
   - This aligns =ldef= with the =l= lambda macro syntax for consistency
-  - Pattern matching, type matching, and value matching still work the same way
-  - Arguments before =->= are parameter patterns: =x=, =(x :integer)=, =(x 0)=, etc.
+  - Arguments before =->= are parameter patterns
+- =ldef= value matching syntax simplified to direct literal matching
+  - Old syntax: =(ldef fib (n 0) -> 0)= - wrapped pattern
+  - New syntax: =(ldef fib 0 -> 0)= - direct value
+  - Lists in patterns =(param ...)= now ALWAYS indicate type matching or rest parameters
+  - To match literal values: use direct syntax for numbers, strings, keywords, quoted symbols, =nil=, =t=, vectors, and quoted lists
+  - Examples:
+    - Numbers: =(ldef fib 0 -> 0)= =(ldef fib 1 -> 1)=
+    - Strings: =(ldef greet "Alice" -> ...)=
+    - Keywords: =(ldef handle :success -> ...)=
+    - Quoted symbols: =(ldef parse 'foo -> ...)=
+    - Booleans: =(ldef check nil -> ...)= =(ldef check t -> ...)=
+    - Vectors: =(ldef process [] -> ...)= =(ldef process [1 2 3] -> ...)=
+    - Lists: =(ldef handle '(1 2 3) -> ...)= =(ldef handle '() -> ...)=
 
 ** Changed
 - Redesigned type specificity system to use lexicographic ordering instead of point-based scoring

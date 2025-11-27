@@ -182,6 +182,174 @@
           (expect (funcall (calculator '+) 2 3) :to-equal 5)
           (expect (funcall (calculator '+ 2) 3) :to-equal 5))))
 
+    (describe "direct value matching"
+      (describe "number matching"
+        (before-all
+          (ldef fib-direct 0 -> 0)
+          (ldef fib-direct 1 -> 1)
+          (ldef fib-direct n -> (+ (fib-direct (- n 1)) (fib-direct (- n 2)))))
+
+        (test-it "matches number 0"
+          (expect (fib-direct 0) :to-equal 0))
+
+        (test-it "matches number 1"
+          (expect (fib-direct 1) :to-equal 1))
+
+        (test-it "uses general case for other numbers"
+          (expect (fib-direct 5) :to-equal 5)))
+
+      (describe "string matching"
+        (before-all
+          (ldef greet-direct "Alice" -> "Hello, Alice!")
+          (ldef greet-direct "Bob" -> "Hey, Bob!")
+          (ldef greet-direct name -> (concat "Hi, " name "!")))
+
+        (test-it "matches string Alice"
+          (expect (greet-direct "Alice") :to-equal "Hello, Alice!"))
+
+        (test-it "matches string Bob"
+          (expect (greet-direct "Bob") :to-equal "Hey, Bob!"))
+
+        (test-it "uses general case for other strings"
+          (expect (greet-direct "Charlie") :to-equal "Hi, Charlie!")))
+
+      (describe "keyword matching"
+        (before-all
+          (ldef handle-status :success -> "OK")
+          (ldef handle-status :error -> "Failed")
+          (ldef handle-status :warning -> "Warning!")
+          (ldef handle-status status -> (format "Unknown: %s" status)))
+
+        (test-it "matches :success keyword"
+          (expect (handle-status :success) :to-equal "OK"))
+
+        (test-it "matches :error keyword"
+          (expect (handle-status :error) :to-equal "Failed"))
+
+        (test-it "matches :warning keyword"
+          (expect (handle-status :warning) :to-equal "Warning!"))
+
+        (test-it "uses general case for other keywords"
+          (expect (handle-status :unknown) :to-equal "Unknown: :unknown")))
+
+      (describe "quoted symbol matching"
+        (before-all
+          (ldef parse-sym 'nil -> "got nil symbol")
+          (ldef parse-sym 'foo -> "got foo symbol")
+          (ldef parse-sym 'bar -> "got bar symbol")
+          (ldef parse-sym x -> (format "got something else: %s" x)))
+
+        (test-it "matches quoted nil"
+          (expect (parse-sym 'nil) :to-equal "got nil symbol"))
+
+        (test-it "matches quoted foo"
+          (expect (parse-sym 'foo) :to-equal "got foo symbol"))
+
+        (test-it "matches quoted bar"
+          (expect (parse-sym 'bar) :to-equal "got bar symbol"))
+
+        (test-it "uses general case for other symbols"
+          (expect (parse-sym 'baz) :to-equal "got something else: baz")))
+
+      (describe "boolean and nil matching"
+        (before-all
+          (ldef handle-bool nil -> "got nil")
+          (ldef handle-bool t -> "got true")
+          (ldef handle-bool x -> (format "got other: %s" x)))
+
+        (test-it "matches nil"
+          (expect (handle-bool nil) :to-equal "got nil"))
+
+        (test-it "matches t"
+          (expect (handle-bool t) :to-equal "got true"))
+
+        (test-it "uses general case for other values"
+          (expect (handle-bool 42) :to-equal "got other: 42")))
+
+      (describe "mixed direct values and type matching"
+        (before-all
+          (ldef complex-match 0 'start (x :integer) -> (format "Special: x=%d" x))
+          (ldef complex-match n sym (val :integer) -> (format "General: n=%s sym=%s val=%d" n sym val))
+          (ldef complex-match n sym val -> (format "Fallback: n=%s sym=%s val=%s" n sym val)))
+
+        (test-it "matches specific pattern with direct values and type"
+          (expect (complex-match 0 'start 42) :to-equal "Special: x=42"))
+
+        (test-it "matches general pattern with type constraint"
+          (expect (complex-match 5 'foo 10) :to-equal "General: n=5 sym=foo val=10"))
+
+        (test-it "uses fallback for non-integer val"
+          (expect (complex-match 5 'foo "bar") :to-equal "Fallback: n=5 sym=foo val=bar")))
+
+      (describe "multiple values with same arity"
+        (before-all
+          (ldef number-name 0 -> "zero")
+          (ldef number-name 1 -> "one")
+          (ldef number-name 2 -> "two")
+          (ldef number-name 3 -> "three")
+          (ldef number-name n -> (format "number %d" n)))
+
+        (test-it "matches zero"
+          (expect (number-name 0) :to-equal "zero"))
+
+        (test-it "matches one"
+          (expect (number-name 1) :to-equal "one"))
+
+        (test-it "matches two"
+          (expect (number-name 2) :to-equal "two"))
+
+        (test-it "matches three"
+          (expect (number-name 3) :to-equal "three"))
+
+        (test-it "uses general case for other numbers"
+          (expect (number-name 42) :to-equal "number 42")))
+
+      (describe "direct value matching with currying"
+        (before-all
+          (ldef curry-val 0 x -> (* x 2))
+          (ldef curry-val n x -> (+ n x)))
+
+        (test-it "works with direct currying on matched value"
+          (expect (curry-val 0 5) :to-equal 10))
+
+        (test-it "works with partial application on matched value"
+          (expect (funcall (curry-val 0) 5) :to-equal 10))
+
+        (test-it "works with general case currying"
+          (expect (curry-val 3 5) :to-equal 8))
+
+        (test-it "works with partial application on general case"
+          (expect (funcall (curry-val 3) 5) :to-equal 8)))
+
+      (describe "vector matching"
+        (before-all
+          (ldef handle-vec [1 2 3] -> "specific vector")
+          (ldef handle-vec [] -> "empty vector")
+          (ldef handle-vec v -> (format "other vector: %s" v)))
+
+        (test-it "matches specific vector"
+          (expect (handle-vec [1 2 3]) :to-equal "specific vector"))
+
+        (test-it "matches empty vector"
+          (expect (handle-vec []) :to-equal "empty vector"))
+
+        (test-it "uses general case for other vectors"
+          (expect (handle-vec [4 5 6]) :to-equal "other vector: [4 5 6]")))
+
+      (describe "list matching"
+        (before-all
+          (ldef handle-list '(1 2 3) -> "specific list")
+          (ldef handle-list '() -> "empty list")
+          (ldef handle-list lst -> (format "other list: %s" lst)))
+
+        (test-it "matches specific list"
+          (expect (handle-list '(1 2 3)) :to-equal "specific list"))
+
+        (test-it "matches empty list"
+          (expect (handle-list '()) :to-equal "empty list"))
+
+        (test-it "uses general case for other lists"
+          (expect (handle-list '(4 5 6)) :to-equal "other list: (4 5 6)"))))
 
     (describe "do not allow more arguments than it is defined"
       (before-all

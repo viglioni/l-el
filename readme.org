@@ -47,9 +47,9 @@ _{This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in th
   ;; -*- l-syntax: t; -*-
 
   @doc "A function that returns the nth Fibonacci number.
-  This function grows exponentially and demonstrates pattern matching."
-  (ldef fib (n 0) -> 0)
-  (ldef fib (n 1) -> 1)
+  This function grows exponentially and demonstrates direct value matching."
+  (ldef fib 0 -> 0)
+  (ldef fib 1 -> 1)
   (ldef fib (n :integer) ->
         (+ (fib (- n 1))
            (fib (- n 2))))
@@ -68,8 +68,8 @@ _{This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in th
   (ldef sum (nums :rest) -> (apply '+ nums))
   (sum 1 2 3 4 5)      ;; => 15
 
-  @doc "Greeting function with value-based pattern matching."
-  (ldef greet (name "Alice") -> "Hello, Alice!")
+  @doc "Greeting function with direct value matching."
+  (ldef greet "Alice" -> "Hello, Alice!")
   (ldef greet (name :string) -> (concat "Hi, " name "!"))
   (greet "Alice")      ;; => "Hello, Alice!"
   (greet "Bob")        ;; => "Hi, Bob!"
