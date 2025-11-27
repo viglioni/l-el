@@ -51,9 +51,9 @@ All literal values can now be used directly as patterns without wrapping:
 **** Number matching
 ***** Old syntax (0.5.0):
 #+begin_src emacs-lisp
-(ldef fib (n 0) -> 0)
-(ldef fib (n 1) -> 1)
-(ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))
+(ldef fib ((n 0)) 0)
+(ldef fib ((n 1)) 1)
+(ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))
 #+end_src
 
 ***** New syntax (1.0.0):
@@ -66,9 +66,9 @@ All literal values can now be used directly as patterns without wrapping:
 **** String matching
 ***** Old syntax (0.5.0):
 #+begin_src emacs-lisp
-(ldef greet (name "Alice") -> "Hello, Alice!")
-(ldef greet (name "Bob") -> "Hey, Bob!")
-(ldef greet name -> (concat "Hi, " name "!"))
+(ldef greet ((name "Alice")) "Hello, Alice!")
+(ldef greet ((name "Bob")) "Hey, Bob!")
+(ldef greet (name) (concat "Hi, " name "!"))
 #+end_src
 
 ***** New syntax (1.0.0):
@@ -81,9 +81,9 @@ All literal values can now be used directly as patterns without wrapping:
 **** Keyword matching
 ***** Old syntax (0.5.0):
 #+begin_src emacs-lisp
-(ldef handle (status :success) -> "OK")
-(ldef handle (status :error) -> "Failed")
-(ldef handle status -> (format "Unknown: %s" status))
+(ldef handle ((status :success)) "OK")
+(ldef handle ((status :error)) "Failed")
+(ldef handle (status) (format "Unknown: %s" status))
 #+end_src
 
 ***** New syntax (1.0.0):
@@ -96,9 +96,9 @@ All literal values can now be used directly as patterns without wrapping:
 **** Quoted symbol matching
 ***** Old syntax (0.5.0):
 #+begin_src emacs-lisp
-(ldef parse (sym 'nil) -> "got nil symbol")
-(ldef parse (sym 'foo) -> "got foo symbol")
-(ldef parse sym -> (format "got: %s" sym))
+(ldef parse ((sym 'nil)) "got nil symbol")
+(ldef parse ((sym 'foo)) "got foo symbol")
+(ldef parse (sym) (format "got: %s" sym))
 #+end_src
 
 ***** New syntax (1.0.0):
@@ -111,9 +111,9 @@ All literal values can now be used directly as patterns without wrapping:
 **** Multiple arguments with patterns
 ***** Old syntax (0.5.0):
 #+begin_src emacs-lisp
-(ldef calc (op '+) x y -> (+ x y))
-(ldef calc (op '-) x y -> (- x y))
-(ldef calc (op '*) x y -> (* x y))
+(ldef calc ((op '+) x y) (+ x y))
+(ldef calc ((op '-) x y) (- x y))
+(ldef calc ((op '*) x y) (* x y))
 #+end_src
 
 ***** New syntax (1.0.0):
@@ -126,8 +126,8 @@ All literal values can now be used directly as patterns without wrapping:
 **** Mixed direct values and type constraints
 ***** Old syntax (0.5.0):
 #+begin_src emacs-lisp
-(ldef process (n 0) (op 'start) (x :integer) -> (format "Special: x=%d" x))
-(ldef process n op (val :integer) -> (format "General: n=%s op=%s val=%d" n op val))
+(ldef process ((n 0) (op 'start) (x :integer)) (format "Special: x=%d" x))
+(ldef process (n op (val :integer)) (format "General: n=%s op=%s val=%d" n op val))
 #+end_src
 
 ***** New syntax (1.0.0):
@@ -139,11 +139,14 @@ All literal values can now be used directly as patterns without wrapping:
 *** Migration guide:
 
 1. **Add =->= before the body** in all =ldef= definitions
-2. **Remove wrapping from value patterns:**
-   - =(param value)= becomes just =value=
+2. **Unwrap the arguments list** - arguments are no longer wrapped in a single list
+   - Old: =(ldef add (x y) body)=
+   - New: =(ldef add x y -> body)=
+3. **Remove wrapping from value patterns:**
+   - =((param value))= becomes just =value=
    - Keep =(param :type)= as-is for type matching
    - Keep =(param :rest)= as-is for rest parameters
-3. **Use quoted forms for literal lists:**
+4. **Use quoted forms for literal lists:**
    - To match a literal list like =(1 2 3)=, use ='(1 2 3)=
    - Unquoted lists =(...)= are now ONLY for type/rest patterns
 
