@@ -1,0 +1,212 @@
+#+title: Development Guide
+
+This document contains information for developers who want to contribute to l.el or understand its internals.
+
+* Table of Contents :TOC:
+- [[#setting-up-development-environment][Setting up development environment]]
+- [[#running-tests][Running tests]]
+- [[#project-structure][Project structure]]
+- [[#coding-conventions][Coding conventions]]
+- [[#release-process][Release process]]
+- [[#contributing][Contributing]]
+
+* Setting up development environment
+
+** Prerequisites
+
+You need to have the following tools installed:
+- Emacs 26.3 or higher
+- [[https://github.com/cask/cask][Cask]] - Emacs dependency management
+
+** Installing dependencies
+
+#+begin_src shell
+make deps
+#+end_src
+
+This will install all development dependencies including the test framework (buttercup).
+
+* Running tests
+
+** Run all tests
+
+#+begin_src shell
+make test
+#+end_src
+
+** Run tests for a specific module
+
+#+begin_src shell
+# Run only core tests
+cask exec buttercup -L . -L lib -L test test/core/
+
+# Run only l-mode tests
+cask exec buttercup -L . -L lib -L test test/l-mode/
+
+# Run only utilities tests
+cask exec buttercup -L . -L lib -L test test/utilities/
+#+end_src
+
+** Test structure
+
+Tests are organized by module:
+- =test/core/= - Core functionality tests (ldef, pattern matching, etc.)
+- =test/l-mode/= - l-mode syntax highlighting tests
+- =test/utilities/= - Utility function tests (lcomp, lpipe, etc.)
+
+* Project structure
+
+#+begin_example
+l-el/
+├── lib/
+│   ├── core/              # Core library files
+│   │   ├── l-main.el      # Main entry point, public API
+│   │   ├── l-generic.el   # Pattern matching & dispatch
+│   │   ├── l-exception.el # Error handling
+│   │   ├── l-generic-*.el # Type system components
+│   │   └── l-syntax.el    # Syntax transformation
+│   ├── l-mode/            # Major mode
+│   │   └── l-mode.el
+│   └── utilities/         # Utility functions
+│       └── l-function.el  # lcomp, lpipe, etc.
+├── test/                  # Test files (mirrors lib structure)
+├── docs/                  # Documentation
+│   ├── api.org           # API reference
+│   ├── breaking-changes.org
+│   └── development.org   # This file
+├── scripts/              # Build and release scripts
+│   └── release.el
+├── l.el                  # Package entry point
+├── Cask                  # Dependency specification
+└── makefile              # Build automation
+#+end_example
+
+* Coding conventions
+
+** File headers
+
+All =.el= files should include:
+- Standard Emacs file header with lexical binding
+- Copyright notice
+- GPL license
+- Commentary section
+
+** Version markers
+
+Use =NEXT= as a placeholder for features in development:
+
+#+begin_src emacs-lisp
+;; In file headers for new files
+;; Version: NEXT
+
+;; In function docstrings for new functions
+(defun my-new-function ()
+  "Description of the function.
+
+since: NEXT"
+  ...)
+#+end_src
+
+These will be automatically updated to the version number during release.
+
+** Naming conventions
+
+- Public functions/macros: =ldef=, =lpartial=, =lcomp=, etc.
+- Private functions: =l--internal-function= (double dash)
+- Registry functions: =l-generic--add-method=, =l--get-from-registry=
+- Type predicates: =:integer=, =:string=, =:list_of=, etc.
+
+** Documentation
+
+- All public functions must have docstrings
+- Use =@doc= macro for ldef functions to provide rich documentation
+- Include examples in docstrings when helpful
+- Update =docs/api.org= when adding new public functions
+
+** Testing
+
+- Write tests for all new functionality
+- Test files mirror the structure of =lib/=
+- Use descriptive test names: ="highlights arrow in ldef definitions"=
+- Group related tests with =describe= blocks
+
+* Release process
+
+** Automated version management
+
+The =scripts/release.el= script handles all version updates automatically:
+
+1. Updates version numbers in all files
+2. Replaces =NEXT= markers with actual version numbers
+3. Updates changelog
+4. Creates git tag
+5. Pushes to remote
+
+** Creating a release
+
+#+begin_src shell
+# For patch version (0.5.0 -> 0.5.1)
+emacs --batch --load scripts/release.el --eval "(release-version \"patch\")"
+
+# For minor version (0.5.0 -> 0.6.0)
+emacs --batch --load scripts/release.el --eval "(release-version \"minor\")"
+
+# For major version (0.5.0 -> 1.0.0)
+emacs --batch --load scripts/release.el --eval "(release-version \"major\")"
+#+end_src
+
+The script will:
+1. Ask for confirmation of current version
+2. Ask for confirmation of new version
+3. Update all version references
+4. Update changelog (Unreleased -> Version X.X.X)
+5. Commit changes
+6. Create and push git tag
+
+** What gets updated automatically
+
+- =l.el= - Package version
+- All =.el= files - =Version: NEXT= → =Version: X.X.X=
+- All =.el= files - =since: NEXT= → =since: X.X.X=
+- =changelog.org= - Unreleased section → versioned section
+- =readme.org= - =:tag= in installation instructions
+- =Cask= - Package version
+
+** Manual steps after release
+
+1. GitHub Actions will automatically create a release on the tag
+2. Verify the release on GitHub
+3. Update any external documentation if needed
+
+* Contributing
+
+** Before opening a PR
+
+1. **Open an issue first** - Discuss the proposed changes
+2. **Write tests** - Ensure your changes are tested
+3. **Update documentation** - Keep docs in sync with code
+4. **Run tests locally** - Make sure all tests pass
+5. **Follow conventions** - Match the existing code style
+
+** PR checklist
+
+- [ ] Tests added for new functionality
+- [ ] All tests passing locally
+- [ ] Documentation updated (API docs, README if needed)
+- [ ] Used =NEXT= markers for new features
+- [ ] Followed naming conventions
+- [ ] Added changelog entry if applicable
+
+** Code review process
+
+1. Maintainer reviews code
+2. Discuss any requested changes
+3. Once approved, maintainer will merge
+4. Changes will be included in next release
+
+** Questions or help
+
+- Open an issue for questions
+- Check existing issues for known problems
+- See [[../readme.org][README]] for general usage information
+- See [[./api.org][API Reference]] for function documentation

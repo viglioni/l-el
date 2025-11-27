@@ -40,7 +40,7 @@ Check the [[https://github.com/viglioni/l-el/tree/latest-release][latest release
 
 All versions are tested on every push via [[https://github.com/viglioni/l-el/actions][GitHub Actions CI]].
 
-_{This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in this setup.}_
+This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in this setup.
 
 
 #+begin_src elisp :exports both :results output
@@ -77,20 +77,31 @@ _{This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in th
 
 ** Features
 
-- **Automatic currying** with =ldef= - functions automatically curry when called with fewer arguments
-- **Advanced pattern matching** with =ldef= - supports value matching, type matching, and rest parameters
-- **Comprehensive type system** - extensive type predicates for robust pattern matching
-- **Partial application** with =lpartial= - create partially applied functions
-- **Placeholder substitution** with =__= - elegant placeholder-based expressions
-- **Lambda syntax** with =l= - arrow notation for concise function definitions
-- **Syntax transformation** with =with-l= and =l-syntax= - enable natural curried function call syntax
-- **Documentation system** with =@doc= - Elixir-style documentation annotations
-- **Enhanced major mode** with =l-mode= - specialized syntax highlighting and development tools
-- **Function composition** with =lcomp= - compose functions for elegant data transformation
-- **Specialized loading** with =l-require= - enhanced library loading with automatic l-syntax processing
-- **Generic function management** - comprehensive tools for function lifecycle management
+*** Core Pattern Matching & Dispatch
+- **Direct value matching** - Match literal values directly: numbers, strings, keywords, quoted symbols, nil, t, vectors, and lists
+- **Type-based dispatch** - Comprehensive type system with primitive types, category types, and parameterized types (=:instance_of=, =:list_of=)
+- **Automatic currying** - Functions curry automatically when called with fewer arguments than defined
+- **Lexicographic specificity** - Intelligent pattern ordering ensures most specific patterns match first
 
-Check [[./changelog.org][changelog]] for more information.
+*** Functional Programming Primitives
+- **Arrow syntax** - Clean, modern syntax with =->= for lambdas (=l=) and function definitions (=ldef=)
+- **Partial application** - =lpartial= for creating partially applied functions
+- **Placeholder substitution** - Elegant =__= placeholder for concise anonymous functions
+- **Function composition** - =lcomp= and =lpipe= for composing transformations
+
+*** Developer Experience
+- **Enhanced major mode** - =l-mode= with specialized syntax highlighting for ldef functions, calls, and arrows
+- **Elixir-style documentation** - =@doc= macro for beautiful, discoverable function documentation
+- **Syntax transformation** - =with-l= and =l-syntax= enable natural curried function call syntax without explicit funcall
+- **Type predicates** - Extensive type checking with 30+ built-in predicates plus parameterized types
+
+*** Advanced Features
+- **Rest parameters** - Variadic functions with =(param :rest)= syntax
+- **Generic function management** - Tools for inspecting and cleaning up ldef functions
+- **Custom exceptions** - Structured error handling with =l-raise=
+- **Specialized loading** - =l-require= with automatic l-syntax processing
+
+Check [[./changelog.org][changelog]] and [[./docs/breaking-changes.org][breaking changes]] for version history.
 
 ** Usage
 
@@ -142,30 +153,12 @@ When enabled, =l-syntax= automatically wraps expressions in =with-l= during =eva
 
 See [[./docs/api.org][API Reference]] for the complete documentation of all functions, macros, and variables.
 
+For breaking changes between versions, see [[./docs/breaking-changes.org][Breaking Changes]].
+
 * License
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
-* Author
-
-Laura Viglioni
-
-* URL
-
-https://github.com/viglioni/l-el
-
 * Development
 
-** Running the tests
-
-You need to have [[https://github.com/cask/cask][cask]] installed to run the tests.
-
-#+begin_src shell :exports both :results output 
-  make deps
-  make test
-#+end_src
-
-
-** Contribution to this project
-
-- Before opening a PR, open an issue first and let's discuss there the possible solutions.
+For information on contributing, running tests, and the release process, see [[./docs/development.org][Development Guide]].

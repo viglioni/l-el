@@ -37,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Enhanced =l-mode= syntax highlighting:
   - =ldef= function names now highlighted with =font-lock-keyword-face= (bold purple/magenta) in definitions
   - =ldef= function *calls* also highlighted to distinguish them from regular functions
+  - Arrow (=->=) in =ldef= definitions highlighted with same face as function names
   - Three distinct highlighting styles: macros (default), regular functions (default), ldef functions (purple)
   - Makes function definitions and calls highly visible and easy to spot in code
 - Added =ldefp= utility function to check if a symbol is an ldef-defined function

@@ -118,6 +118,11 @@ since: NEXT"
      (1 font-lock-keyword-face)  ;; ldef keyword itself
      (2 font-lock-keyword-face)) ;; function name
 
+    ;; ldef arrow highlighting
+    ;; Matches: -> in ldef definitions
+    ("(ldef\\s-+[^)]*?\\(->\\)"
+     (1 font-lock-keyword-face))
+
     ;; ldef function calls highlighting
     ;; Highlights calls to functions defined with ldef
     (l-highlight-ldef-calls

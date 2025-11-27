@@ -27,27 +27,31 @@
 ;;; Commentary:
 
 ;; l.el provides a modern functional programming approach to writing
-;; Emacs Lisp, drawing inspiration from Common Lisp, Haskell and Elixir.
+;; Emacs Lisp, drawing inspiration from Common Lisp, Haskell, and Elixir.
 ;;
-;; This comprehensive library introduces currying, partial application,
-;; pattern matching, placeholder substitution, syntax transformations,
-;; and specialized development tools that make Emacs Lisp more expressive
-;; and closer to modern functional programming languages.
+;; This comprehensive library transforms Emacs Lisp into a more expressive
+;; functional programming language with pattern matching, automatic currying,
+;; type-based dispatch, and specialized development tools.
 ;;
 ;; Key features:
-;; - Automatic currying with `ldef'
-;; - Advanced pattern matching with `ldef' (value, type, :rest parameters)
-;; - Type matching with comprehensive predicate system
+;;
+;; Pattern Matching & Dispatch:
+;; - Direct value matching: (ldef fib 0 -> 0) (ldef fib 1 -> 1)
+;; - Type-based dispatch with 30+ type predicates and parameterized types
+;; - Automatic currying when functions receive fewer arguments
+;; - Lexicographic specificity ordering for intelligent pattern selection
+;;
+;; Functional Programming:
+;; - Arrow syntax for lambdas (l) and definitions (ldef)
 ;; - Partial application with `lpartial'
 ;; - Placeholder substitution with `__'
-;; - Lambda syntax with `l' and arrow notation
-;; - Custom syntax transformation with `with-l'
-;; - File-level syntax transformation via `l-syntax'
-;; - Documentation annotations with `@doc'
-;; - Enhanced major mode with `l-mode'
-;; - Specialized loading with `l-require'
-;; - Function composition utilities
-;; - Generic function cleanup and management
+;; - Function composition with `lcomp' and `lpipe'
+;;
+;; Developer Experience:
+;; - Enhanced major mode (l-mode) with specialized syntax highlighting
+;; - Elixir-style documentation with `@doc'
+;; - Syntax transformation with `with-l' and `l-syntax'
+;; - Generic function management and introspection tools
 ;;
 ;; Syntax Transformation:
 ;; The `l-syntax' system provides automatic syntax transformation for

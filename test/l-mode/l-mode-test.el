@@ -33,7 +33,7 @@
     (test-it "defines additional keywords variable"
              (expect (boundp 'l-mode-additional-keywords) :to-be t)
              (expect l-mode-additional-keywords :to-be-truthy)
-             (expect (length l-mode-additional-keywords) :to-equal 6))
+             (expect (length l-mode-additional-keywords) :to-equal 7))
     
     (test-it "adds keywords to font-lock when mode is activated"
              (with-temp-buffer
@@ -228,7 +228,43 @@
                (goto-char (point-min))
                (search-forward "string-function")
                (let ((face (get-text-property (match-beginning 0) 'face)))
-                 (expect face :not :to-equal 'font-lock-keyword-face)))))
+                 (expect face :not :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights arrow in ldef definitions"
+             (with-current-buffer test-buffer
+               (insert "(ldef my-func x y -> (+ x y))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "->")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights arrow with multiple arguments"
+             (with-current-buffer test-buffer
+               (insert "(ldef add3 x y z -> (+ x y z))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "->")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights arrow with value matching"
+             (with-current-buffer test-buffer
+               (insert "(ldef fib 0 -> 0)")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "->")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face))))
+
+    (test-it "highlights arrow on different line from ldef"
+             (with-current-buffer test-buffer
+               (insert "(ldef my-func\n  x y z\n  -> (+ x y z))")
+               (font-lock-ensure)
+               (goto-char (point-min))
+               (search-forward "->")
+               (let ((face (get-text-property (match-beginning 0) 'face)))
+                 (expect face :to-equal 'font-lock-keyword-face)))))
 
   (describe "ldef function call highlighting"
     (before-each

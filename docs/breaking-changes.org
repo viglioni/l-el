@@ -1,0 +1,156 @@
+#+title: Breaking Changes
+
+This document describes breaking changes between major versions of l.el.
+
+* Table of Contents :TOC:
+- [[#from-050-to-100][From 0.5.0 to 1.0.0]]
+  - [[#ldef-now-requires-arrow-syntax][ldef now requires arrow syntax]]
+  - [[#ldef-value-matching-syntax-changed-to-direct-literals][ldef value matching syntax changed to direct literals]]
+
+* From 0.5.0 to 1.0.0
+
+** ldef now requires arrow syntax
+
+The =ldef= macro now requires an arrow (=->=) to separate arguments from the function body, aligning with the =l= lambda macro syntax.
+
+*** Old syntax (0.5.0):
+#+begin_src emacs-lisp
+(ldef add (x y) (+ x y))
+(ldef greet ((name "Alice")) "Hello, Alice!")
+#+end_src
+
+*** New syntax (1.0.0):
+#+begin_src emacs-lisp
+(ldef add x y -> (+ x y))
+(ldef greet "Alice" -> "Hello, Alice!")
+#+end_src
+
+** ldef value matching syntax changed to direct literals
+
+Value matching has been simplified to use direct literal values instead of wrapping them in lists.
+
+*** Pattern syntax changes:
+
+**** Lists in patterns now ALWAYS indicate type matching or rest parameters:
+- =(param :type)= - type matching
+- =(param :type type-arg)= - parameterized type matching
+- =(param :rest)= - rest parameter
+
+**** Direct values now match literally:
+All literal values can now be used directly as patterns without wrapping:
+- Numbers: =0=, =1=, =42=
+- Strings: ="Alice"=, ="Bob"=
+- Keywords: =:success=, =:error=
+- Quoted symbols: ='foo=, ='bar=, ='nil=
+- Booleans: =nil=, =t=
+- Vectors: =[]= =, =[1 2 3]=
+- Quoted lists: ='()=, ='(1 2 3)=
+
+*** Examples:
+
+**** Number matching
+***** Old syntax (0.5.0):
+#+begin_src emacs-lisp
+(ldef fib (n 0) -> 0)
+(ldef fib (n 1) -> 1)
+(ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))
+#+end_src
+
+***** New syntax (1.0.0):
+#+begin_src emacs-lisp
+(ldef fib 0 -> 0)
+(ldef fib 1 -> 1)
+(ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))
+#+end_src
+
+**** String matching
+***** Old syntax (0.5.0):
+#+begin_src emacs-lisp
+(ldef greet (name "Alice") -> "Hello, Alice!")
+(ldef greet (name "Bob") -> "Hey, Bob!")
+(ldef greet name -> (concat "Hi, " name "!"))
+#+end_src
+
+***** New syntax (1.0.0):
+#+begin_src emacs-lisp
+(ldef greet "Alice" -> "Hello, Alice!")
+(ldef greet "Bob" -> "Hey, Bob!")
+(ldef greet name -> (concat "Hi, " name "!"))
+#+end_src
+
+**** Keyword matching
+***** Old syntax (0.5.0):
+#+begin_src emacs-lisp
+(ldef handle (status :success) -> "OK")
+(ldef handle (status :error) -> "Failed")
+(ldef handle status -> (format "Unknown: %s" status))
+#+end_src
+
+***** New syntax (1.0.0):
+#+begin_src emacs-lisp
+(ldef handle :success -> "OK")
+(ldef handle :error -> "Failed")
+(ldef handle status -> (format "Unknown: %s" status))
+#+end_src
+
+**** Quoted symbol matching
+***** Old syntax (0.5.0):
+#+begin_src emacs-lisp
+(ldef parse (sym 'nil) -> "got nil symbol")
+(ldef parse (sym 'foo) -> "got foo symbol")
+(ldef parse sym -> (format "got: %s" sym))
+#+end_src
+
+***** New syntax (1.0.0):
+#+begin_src emacs-lisp
+(ldef parse 'nil -> "got nil symbol")
+(ldef parse 'foo -> "got foo symbol")
+(ldef parse sym -> (format "got: %s" sym))
+#+end_src
+
+**** Multiple arguments with patterns
+***** Old syntax (0.5.0):
+#+begin_src emacs-lisp
+(ldef calc (op '+) x y -> (+ x y))
+(ldef calc (op '-) x y -> (- x y))
+(ldef calc (op '*) x y -> (* x y))
+#+end_src
+
+***** New syntax (1.0.0):
+#+begin_src emacs-lisp
+(ldef calc '+ x y -> (+ x y))
+(ldef calc '- x y -> (- x y))
+(ldef calc '* x y -> (* x y))
+#+end_src
+
+**** Mixed direct values and type constraints
+***** Old syntax (0.5.0):
+#+begin_src emacs-lisp
+(ldef process (n 0) (op 'start) (x :integer) -> (format "Special: x=%d" x))
+(ldef process n op (val :integer) -> (format "General: n=%s op=%s val=%d" n op val))
+#+end_src
+
+***** New syntax (1.0.0):
+#+begin_src emacs-lisp
+(ldef process 0 'start (x :integer) -> (format "Special: x=%d" x))
+(ldef process n op (val :integer) -> (format "General: n=%s op=%s val=%d" n op val))
+#+end_src
+
+*** Migration guide:
+
+1. **Add =->= before the body** in all =ldef= definitions
+2. **Remove wrapping from value patterns:**
+   - =(param value)= becomes just =value=
+   - Keep =(param :type)= as-is for type matching
+   - Keep =(param :rest)= as-is for rest parameters
+3. **Use quoted forms for literal lists:**
+   - To match a literal list like =(1 2 3)=, use ='(1 2 3)=
+   - Unquoted lists =(...)= are now ONLY for type/rest patterns
+
+*** Why this change?
+
+This change makes the syntax more intuitive and concise:
+- Clearer distinction between value matching and type matching
+- Less syntax noise for the common case of matching literal values
+- Consistency with pattern matching in other functional languages
+- Alignment with the =l= lambda macro's arrow syntax
