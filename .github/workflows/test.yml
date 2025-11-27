@@ -16,6 +16,7 @@ on:
       - 'makefile'
       - '.github/workflows/test.yml'
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:
