@@ -81,14 +81,14 @@ With local bindings:
   `(l--comp ,@(mapcar (lambda (x) `(__ ,x)) fns)))
 
 @doc "Internal function for `lcomp'. Composes functions right to left."
-(ldef l--comp () (l x -> x))
+(ldef l--comp -> (l x -> x))
 
-(ldef l--comp ((f :function)) f)
+(ldef l--comp (f :function) -> f)
 
-(ldef l--comp ((f :function) (g :function))
+(ldef l--comp (f :function) (g :function) ->
       `(lambda (&rest args) (funcall (quote ,f) (apply (quote ,g) args))))
 
-(ldef l--comp ((f :function) (g :function) (fn-list :rest))
+(ldef l--comp (f :function) (g :function) (fn-list :rest) ->
       (apply 'l--comp (l--comp f g) fn-list))
 
 
@@ -142,11 +142,11 @@ lpipe and lcomp produce the same result but with reversed order.
 
 
 @doc "Internal function for `lpipe'. Pipes value through functions left to right."
-(ldef l--pipe (arg) arg)
+(ldef l--pipe arg -> arg)
 
-(ldef l--pipe (arg (f :function)) (funcall f arg))
+(ldef l--pipe arg (f :function) -> (funcall f arg))
 
-(ldef l--pipe (arg (f :function) (fn-list :rest))
+(ldef l--pipe arg (f :function) (fn-list :rest) ->
       (apply #'l--pipe `(,(l--pipe arg f) ,@fn-list)))
 
 

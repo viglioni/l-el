@@ -44,37 +44,37 @@
   (context "ldef"
     (describe "basic function definition"
       (test-it "defines a function that works with all arguments provided"
-        (ldef test-add (x y) (+ x y))
+        (ldef test-add x y -> (+ x y))
         (expect (test-add 3 4) :to-equal 7))
-      
+
       (test-it "works with single argument functions"
-        (ldef test-square (x) (* x x))
+        (ldef test-square x -> (* x x))
         (expect (test-square 5) :to-equal 25))
-      
+
       (test-it "works with multiple argument functions"
-        (ldef test-multiply (x y z) (* x y z))
+        (ldef test-multiply x y z -> (* x y z))
         (expect (test-multiply 2 3 4) :to-equal 24)))
 
     (describe "edge cases"
       (test-it "works with zero argument functions"
-        (ldef test-constant () 42)
+        (ldef test-constant -> 42)
         (expect (test-constant) :to-equal 42))
 
       (test-it "works with functions that return complex data"
-        (ldef test-list-maker (x y z) (list x y z))
-        (expect (test-list-maker 1 2 3) :to-equal '(1 2 3)))      
+        (ldef test-list-maker x y z -> (list x y z))
+        (expect (test-list-maker 1 2 3) :to-equal '(1 2 3)))
 
       (test-it "works with functions that modify arguments"
-        (ldef test-modifier (x y) (cons (1+ x) (1+ y)))
+        (ldef test-modifier x y -> (cons (1+ x) (1+ y)))
         (expect (test-modifier 1 2) :to-equal '(2 . 3)))
 
       (test-it "works with functions that call other functions"
-        (ldef test-caller (x y) (test-add x y))
+        (ldef test-caller x y -> (test-add x y))
         (expect (test-caller 5 7) :to-equal 12)))
 
     (describe "currying behavior"
       (before-all
-        (ldef add3 (x y z) (+ x y z)))
+        (ldef add3 x y z -> (+ x y z)))
       
       (test-it "works with all arguments at once"
         (expect (add3 1 2 3) :to-equal 6))
@@ -93,8 +93,8 @@
 
     (describe "advanced currying scenarios"
       (before-all
-        (ldef multiply4 (w x y z) (* w x y z))
-        (ldef concat3 (a b c) (concat a b c)))
+        (ldef multiply4 w x y z -> (* w x y z))
+        (ldef concat3 a b c -> (concat a b c)))
 
       (test-it "works with 4-argument functions"
         (expect (multiply4 2 3 4 5) :to-equal 120))
@@ -106,14 +106,14 @@
         (expect (funcall (concat3 "Hello") " " "World") :to-equal "Hello World"))
 
       (test-it "works with mixed data types in currying"
-        (ldef mixed-fn (num str list) (list num str (length list)))
+        (ldef mixed-fn num str list -> (list num str (length list)))
         (expect (funcall (mixed-fn 42) "test" '(1 2 3)) :to-equal '(42 "test" 3))))
 
     (describe "pattern matching"
       (before-all
-        (ldef fib ((n 0)) 0)
-        (ldef fib ((n 1)) 1)
-        (ldef fib (n) (+ (fib (- n 1)) (fib (- n 2)))))
+        (ldef fib (n 0) -> 0)
+        (ldef fib (n 1) -> 1)
+        (ldef fib n -> (+ (fib (- n 1)) (fib (- n 2)))))
 
       (test-it "matches base cases"
         (expect (fib 0) :to-equal 0)
@@ -130,10 +130,10 @@
 
       (describe "pattern matching with different types"
         (before-all
-          (ldef type-checker ((x nil)) "nil")
-          (ldef type-checker ((x t)) "true")
-          (ldef type-checker ((x 0)) "zero")
-          (ldef type-checker (x) "other"))
+          (ldef type-checker (x nil) -> "nil")
+          (ldef type-checker (x t) -> "true")
+          (ldef type-checker (x 0) -> "zero")
+          (ldef type-checker x -> "other"))
 
         (test-it "matches nil value"
           (expect (type-checker nil) :to-equal "nil"))
@@ -151,9 +151,9 @@
 
       (describe "pattern matching with strings"
         (before-all
-          (ldef greet ((name "Alice")) "Hello, Alice!")
-          (ldef greet ((name "Bob")) "Hey, Bob!")
-          (ldef greet (name) (concat "Hi, " name "!")))
+          (ldef greet (name "Alice") -> "Hello, Alice!")
+          (ldef greet (name "Bob") -> "Hey, Bob!")
+          (ldef greet name -> (concat "Hi, " name "!")))
 
         (test-it "matches specific string patterns"
           (expect (greet "Alice") :to-equal "Hello, Alice!")
@@ -164,10 +164,10 @@
 
       (describe "pattern matching with multiple arguments"
         (before-all
-          (ldef calculator ((op '+) x y) (+ x y))
-          (ldef calculator ((op '-) x y) (- x y))
-          (ldef calculator ((op '*) x y) (* x y))
-          (ldef calculator (op x y) (error "Unknown operation: %s" op)))
+          (ldef calculator (op '+) x y -> (+ x y))
+          (ldef calculator (op '-) x y -> (- x y))
+          (ldef calculator (op '*) x y -> (* x y))
+          (ldef calculator op x y -> (error "Unknown operation: %s" op)))
 
         (test-it "matches addition operation"
           (expect (calculator '+ 3 4) :to-equal 7))
@@ -185,9 +185,8 @@
 
     (describe "do not allow more arguments than it is defined"
       (before-all
-        (ldef one-or-two-params ((n :number)) n)
-        (ldef one-or-two-params ((n :number) (s :string))
-              (format "%s. %s" n s)))
+(ldef one-or-two-params (n :number)  -> n)
+(ldef one-or-two-params (n :number) (s :string)  -> (format "%s. %s" n s)))
       
       (test-it "works with one param"
         (expect (one-or-two-params 10) :to-equal 10))
@@ -201,23 +200,23 @@
         (expect (one-or-two-params "maradona" "rooney") :to-throw)
         (expect (one-or-two-params 10 "garrincha" "zico") :to-throw))
       (test-it "do not allow &rest operator"
-        (expect (macroexpand '(ldef foo (&rest args) nil)) :to-throw)))
+        (expect (macroexpand '(ldef foo (&rest args) -> nil)) :to-throw)))
 
     (describe ":rest operator"
-      (before-all (ldef rest-fun ((a :number) (b :number) (c :rest)) c))
+      (before-all (ldef rest-fun (a :number) (b :number) (c :rest) -> c))
       (test-it "rest operator works"
         (expect (rest-fun 1 2 3) :to-equal '(3))
         (expect (funcall (rest-fun 1 2) 3 4) :to-equal '(3 4)))
 
       (test-it ":rest operator can only exist in the final argument"
-        (expect (ldef rest-fail ((c: number) (a :rest) (b :number)) nil) :to-throw)))
+        (expect (ldef rest-fail (c :number) (a :rest) (b :number) -> nil) :to-throw)))
 
     (describe "pattern matching with complex data structures"
       (describe "alists"
         (before-all
-          (ldef process-alist ((config '((key . value)))) "matched single pair alist")
-          (ldef process-alist ((config '((a . b) (c . d)))) "matched multi pair alist")
-          (ldef process-alist (config) "other"))
+(ldef process-alist (config '((key . value)))  -> "matched single pair alist")
+(ldef process-alist (config '((a . b) (c . d)))  -> "matched multi pair alist")
+(ldef process-alist config  -> "other"))
 
         (test-it "matches single pair alist"
           (expect (process-alist '((key . value))) :to-equal "matched single pair alist"))
@@ -231,9 +230,9 @@
 
       (describe "plists"
         (before-all
-          (ldef handle-opts ((opts '(:key value))) "matched key-value plist")
-          (ldef handle-opts ((opts '(:foo bar :baz qux))) "matched multi-key plist")
-          (ldef handle-opts (opts) "other"))
+(ldef handle-opts (opts '(:key value))  -> "matched key-value plist")
+(ldef handle-opts (opts '(:foo bar :baz qux))  -> "matched multi-key plist")
+(ldef handle-opts opts  -> "other"))
 
         (test-it "matches single key-value plist"
           (expect (handle-opts '(:key value)) :to-equal "matched key-value plist"))
@@ -246,9 +245,9 @@
 
       (describe "nested dotted pairs"
         (before-all
-          (ldef handle-nested ((data '((a . (b . c))))) "matched nested dotted")
-          (ldef handle-nested ((data '(x . (y . z)))) "matched improper nested")
-          (ldef handle-nested (data) "other"))
+(ldef handle-nested (data '((a b . c)))  -> "matched nested dotted")
+(ldef handle-nested (data '(x y . z))  -> "matched improper nested")
+(ldef handle-nested data  -> "other"))
 
         (test-it "matches nested dotted pairs"
           (expect (handle-nested '((a . (b . c)))) :to-equal "matched nested dotted"))
@@ -261,9 +260,9 @@
 
       (describe "vectors"
         (before-all
-          (ldef process-vec ((arr [1 2 3])) "matched [1 2 3]")
-          (ldef process-vec ((arr [])) "matched empty vector")
-          (ldef process-vec (arr) "other"))
+(ldef process-vec (arr [1 2 3])  -> "matched [1 2 3]")
+(ldef process-vec (arr [])  -> "matched empty vector")
+(ldef process-vec arr  -> "other"))
 
         (test-it "matches specific vector"
           (expect (process-vec [1 2 3]) :to-equal "matched [1 2 3]"))
@@ -277,9 +276,9 @@
 
       (describe "mixed complex structures"
         (before-all
-          (ldef config-handler ((cfg '(:mode (foo . bar)))) "matched mode config")
-          (ldef config-handler ((cfg '(:type list :data ((a . b))))) "matched data config")
-          (ldef config-handler (cfg) "other"))
+(ldef config-handler (cfg '(:mode (foo . bar)))  -> "matched mode config")
+(ldef config-handler (cfg '(:type list :data ((a . b))))  -> "matched data config")
+(ldef config-handler cfg  -> "other"))
 
         (test-it "matches mode config with dotted pair"
           (expect (config-handler '(:mode (foo . bar))) :to-equal "matched mode config"))
@@ -293,9 +292,9 @@
       (describe "empty and nil edge cases"
         (before-all
           ;; Note: In Emacs Lisp, nil and '() are identical, so only one pattern will match
-          (ldef nil-handler ((x nil)) "matched nil or empty list")
-          (ldef nil-handler ((x 0)) "matched zero")
-          (ldef nil-handler (x) "other"))
+(ldef nil-handler (x nil)  -> "matched nil or empty list")
+(ldef nil-handler (x 0)  -> "matched zero")
+(ldef nil-handler x  -> "other"))
 
         (test-it "matches nil (which is also empty list in Emacs Lisp)"
           (expect (nil-handler nil) :to-equal "matched nil or empty list")
@@ -310,8 +309,8 @@
 
       (describe "multiple wildcards"
         (before-all
-          (ldef ignore-edges (_ x _) x)
-          (ldef ignore-middle (a _ _ d) (list a d)))
+(ldef ignore-edges _ x _  -> x)
+(ldef ignore-middle a _ _ d  -> (list a d)))
 
         (test-it "ignores first and last arguments"
           (expect (ignore-edges 1 2 3) :to-equal 2)
@@ -323,9 +322,9 @@
 
       (describe "improper lists"
         (before-all
-          (ldef handle-improper ((x '(1 2 . 3))) "matched (1 2 . 3)")
-          (ldef handle-improper ((x '(a . b))) "matched (a . b)")
-          (ldef handle-improper (x) "other"))
+(ldef handle-improper (x '(1 2 . 3))  -> "matched (1 2 . 3)")
+(ldef handle-improper (x '(a . b))  -> "matched (a . b)")
+(ldef handle-improper x  -> "other"))
 
         (test-it "matches specific improper list"
           (expect (handle-improper '(1 2 . 3)) :to-equal "matched (1 2 . 3)"))
@@ -338,9 +337,9 @@
 
       (describe "quoted symbols in patterns"
         (before-all
-          (ldef quote-handler ((x '(quote foo))) "matched 'foo")
-          (ldef quote-handler ((x 'bar)) "matched bar symbol")
-          (ldef quote-handler (x) "other"))
+(ldef quote-handler (x ''foo)  -> "matched 'foo")
+(ldef quote-handler (x 'bar)  -> "matched bar symbol")
+(ldef quote-handler x  -> "other"))
 
         (test-it "matches quoted symbol structure"
           (expect (quote-handler '(quote foo)) :to-equal "matched 'foo"))
@@ -356,7 +355,7 @@
 
     (describe "funcall notation"
       (before-all
-        (ldef add3 (x y z) (+ x y z)))
+(ldef add3 x y z  -> (+ x y z)))
       
       (test-it "works with all arguments at once"
         (expect (with-l (add3 1 2 3)) :to-equal 6))
@@ -469,8 +468,8 @@
 
     (describe "complex transformation scenarios"
       (before-all
-        (ldef multiply3 (x y z) (* x y z))
-        (ldef subtract2 (x y) (- x y)))
+(ldef multiply3 x y z  -> (* x y z))
+(ldef subtract2 x y  -> (- x y)))
 
       (test-it "works with nested function calls"
         (expect (with-l (add3 (multiply3 2 3 4) 5 6)) :to-equal 35))
@@ -539,30 +538,30 @@
       (describe "ldef inside with-l"
         (test-it "defines curried functions that work normally"
           (with-l
-           (ldef test-curried-add (x y z) (+ x y z)))
+(ldef test-curried-add x y z  -> (+ x y z)))
           (expect (test-curried-add 1 2 3) :to-equal 6)
           (expect (funcall (test-curried-add 1 2) 3) :to-equal 6))
 
         (test-it "defines curried functions that work with currying syntax in same block"
           (with-l
-           (ldef test-curried-multiply (x y z) (* x y z))
+(ldef test-curried-multiply x y z  -> (* x y z))
            ((test-curried-multiply 2 3) 4))
           (expect (* 2 3 4) :to-equal 24))
 
         (test-it "defines pattern-matched functions inside with-l"
           (with-l
-           (ldef test-pattern-func ((x 0)) "zero")
-           (ldef test-pattern-func ((x 1)) "one")
-           (ldef test-pattern-func (x) "other"))
+(ldef test-pattern-func (x 0)  -> "zero")
+(ldef test-pattern-func (x 1)  -> "one")
+(ldef test-pattern-func x  -> "other"))
           (expect (test-pattern-func 0) :to-equal "zero")
           (expect (test-pattern-func 1) :to-equal "one")
           (expect (test-pattern-func 5) :to-equal "other"))
 
         (test-it "defines type-matched functions inside with-l"
           (with-l
-           (ldef test-type-dispatch ((x :string)) (upcase x))
-           (ldef test-type-dispatch ((x :integer)) (* x 2))
-           (ldef test-type-dispatch (x) x))
+(ldef test-type-dispatch (x :string)  -> (upcase x))
+(ldef test-type-dispatch (x :integer)  -> (* x 2))
+(ldef test-type-dispatch x  -> x))
           (expect (test-type-dispatch "hello") :to-equal "HELLO")
           (expect (test-type-dispatch 5) :to-equal 10)
           (expect (test-type-dispatch '(1 2 3)) :to-equal '(1 2 3))))
@@ -571,16 +570,16 @@
         (test-it "combines different definition types in one with-l block"
           (with-l
            (defun regular-double (x) (* x 2))
-           (ldef curried-add (x y) (+ x y))
+(ldef curried-add x y  -> (+ x y))
            (defmacro test/make-list (x) `(list ,x ,x))
            (+ (regular-double 3) ((curried-add 2) 4) (car (test/make-list 1))))
           (expect (+ 6 6 1) :to-equal 13))))
 
     (describe "currying with complex data structures"
       (before-all
-        (ldef cons-builder (car cdr) (cons car cdr))
-        (ldef alist-getter (alist key) (alist-get key alist))
-        (ldef list-builder (a b c) (list a b c)))
+(ldef cons-builder car cdr  -> (cons car cdr))
+(ldef alist-getter alist key  -> (alist-get key alist))
+(ldef list-builder a b c  -> (list a b c)))
 
       (test-it "works with curried functions that build cons cells"
         (expect (with-l ((cons-builder 'a) 'b)) :to-equal '(a . b)))
@@ -615,7 +614,7 @@
                 :to-equal '((:mode (foo . bar)) (:config (baz . qux)) data)))
 
       (test-it "preserves alist structure through currying chain"
-        (ldef alist-processor (alist transform) (mapcar transform alist))
+(ldef alist-processor alist transform  -> (mapcar transform alist))
         (expect (with-l ((alist-processor '((a . 1) (b . 2))) 'cdr))
                 :to-equal '(1 2)))
 
@@ -633,7 +632,7 @@
 
   (context "__"
     (before-all
-      (ldef delta (a b c) (- (* b b) (* 4 a c))))
+(ldef delta a b c  -> (- (* b b) (* 4 a c))))
 
     (test-it "works without currying"
       (expect (delta 1 2 3) :to-equal -8))
@@ -700,7 +699,7 @@
 
     (describe "integration with with-l"
       (before-all
-        (ldef multiply (x y) (* x y)))
+(ldef multiply x y  -> (* x y)))
       
       (test-it "works inside with-l expressions"
         (expect (with-l (funcall (l x -> (* x 2)) 5)) :to-equal 10))

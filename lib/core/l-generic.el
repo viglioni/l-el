@@ -473,6 +473,12 @@ Examples:
 \(ldef foo (a (b :number) (c :rest))...) ;; correct
 \(ldef foo (a (b :rest) (c :rest))...)   ;; incorrect
 \(ldef foo (a (b :rest) (c :string))...) ;; incorrect"
+  ;; Check for &rest (Emacs native syntax - not allowed)
+  (when (memq '&rest pattern-list)
+    (l-raise 'invalid-rest-parameter
+             :function-name name
+             :message "Use :rest instead of &rest"))
+
   (let ((rest-positions (cl-loop for pattern in pattern-list
                                  for i from 0
                                  when (cl-destructuring-bind (_param spec _type-arg)
@@ -483,11 +489,13 @@ Examples:
     ;; rest position validations
     (when rest-positions
       (when (> (length rest-positions) 1)
-        (signal 'l-invalid-rest-parameter-error
-                (list name "Only one :rest parameter allowed")))
+        (l-raise 'invalid-rest-parameter
+                 :function-name name
+                 :message "Only one :rest parameter allowed"))
       (when (/= (car rest-positions) (1- (length pattern-list)))
-        (signal 'l-invalid-rest-parameter-error
-                (list name ":rest parameter must be the last parameter"))))))
+        (l-raise 'invalid-rest-parameter
+                 :function-name name
+                 :message ":rest parameter must be the last parameter")))))
 
 (defun l-generic-cleanup (name)
   "Remove generic function NAME and all its methods.
@@ -571,7 +579,8 @@ BODY is the function body to execute when pattern matches."
       
       ;; Check for &rest and error
       (when (cl-position '&rest args)
-        (error "Use (param :rest) instead of &rest for pattern matching functions"))
+        (signal 'l-invalid-rest-parameter-error
+                (list name "Use (param :rest) instead of &rest")))
       
       ;; Regular fixed-arity function
       `(progn

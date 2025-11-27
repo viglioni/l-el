@@ -15,7 +15,7 @@
 
 (describe "l-syntax.el"
   (before-all
-    (ldef add (a b) (+ a b))
+(ldef add a b  -> (+ a b))
     (l-syntax-advices))
   (after-all
     (l-syntax-remove-advices))
@@ -231,14 +231,14 @@
         (test-it "throws error when l-syntax is nil"
                  (let ((l-syntax nil))
                    (with-temp-buffer
-                     (insert "@doc \"Adds two numbers\"\n(ldef add-doc (a b) (+ a b))")
+                     (insert "@doc \"Adds two numbers\"\n(ldef add-doc a b -> (+ a b))")
                      (goto-char (point-max))
                      (expect (eval-buffer nil) :to-throw))))
         
         (test-it "works when l-syntax is nil but prop variable is set"
                  (let ((l-syntax nil))
                    (with-temp-buffer
-                     (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc (a b) (+ a b))")
+                     (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc a b -> (+ a b))")
                      (goto-char (point-max))
                      (eval-buffer nil)
                      (expect (string-match-p "Adds two numbers"
@@ -247,7 +247,7 @@
         (test-it "works when l-syntax is bound to t in let"
                  (let ((l-syntax t))
                    (with-temp-buffer
-                     (insert "@doc \"Adds two numbers\"\n(ldef add-doc (a b) (+ a b))")
+                     (insert "@doc \"Adds two numbers\"\n(ldef add-doc a b -> (+ a b))")
                      (goto-char (point-max))
                      (eval-buffer nil)
                      (expect (string-match-p "Adds two numbers"
@@ -261,14 +261,14 @@
                    (let ((l-syntax nil)
                          (eval-expression-debug-on-error nil))
                      (with-temp-buffer
-                       (insert "(progn\n@doc \"Adds two numbers\"\n(ldef add-doc-last (a b) (+ a b)))")
+                       (insert "(progn\n@doc \"Adds two numbers\"\n(ldef add-doc-last a b -> (+ a b)))")
                        (goto-char (point-max))
                        (expect (eval-last-sexp nil) :to-throw))))
           
           (test-it "works when l-syntax is nil but prop variable is set"
                    (let ((l-syntax nil))
                      (with-temp-buffer
-                       (insert ";; -*- l-syntax: t; -*-\n(progn\n@doc \"Adds two numbers\"\n(ldef add-doc-last (a b) (+ a b)))")
+                       (insert ";; -*- l-syntax: t; -*-\n(progn\n@doc \"Adds two numbers\"\n(ldef add-doc-last a b -> (+ a b)))")
                        (goto-char (point-max))
                        (eval-last-sexp nil)
                        (expect (string-match-p "Adds two numbers"
@@ -277,7 +277,7 @@
           (test-it "works when l-syntax is bound to t in let"
                    (let ((l-syntax t))
                      (with-temp-buffer
-                       (insert "(progn\n@doc \"Adds two numbers\"\n(ldef add-doc-last (a b) (+ a b)))")
+                       (insert "(progn\n@doc \"Adds two numbers\"\n(ldef add-doc-last a b -> (+ a b)))")
                        (goto-char (point-max))
                        (eval-last-sexp nil)
                        (expect (string-match-p "Adds two numbers"
@@ -287,14 +287,14 @@
           (test-it "throws error when l-syntax is nil"
                    (let ((l-syntax nil))
                      (with-temp-buffer
-                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc-region (a b) (+ a b))")
+                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc-region a b -> (+ a b))")
                        (mark-whole-buffer)
                        (expect (eval-region (point-min) (point-max)) :to-throw))))
           
           (test-it "works when l-syntax is nil but prop variable is set"
                    (let ((l-syntax nil))
                      (with-temp-buffer
-                       (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc-region (a b) (+ a b))")
+                       (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc-region a b -> (+ a b))")
                        (mark-whole-buffer)
                        (eval-region (point-min) (point-max))
                        (expect (string-match-p "Adds two numbers"
@@ -303,7 +303,7 @@
           (test-it "works when l-syntax is bound to t in let"
                    (let ((l-syntax t))
                      (with-temp-buffer
-                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc-region (a b) (+ a b))")
+                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc-region a b -> (+ a b))")
                        (mark-whole-buffer)
                        (eval-region (point-min) (point-max))
                        (expect (string-match-p "Adds two numbers"
@@ -320,10 +320,10 @@
               
               ;; Write content to temp files
               (with-temp-file temp-file-path
-                (insert "@doc \"Adds two numbers\"\n(ldef add-doc-load (a b) (+ a b))"))
+                (insert "@doc \"Adds two numbers\"\n(ldef add-doc-load a b -> (+ a b))"))
               
               (with-temp-file temp-file-with-prop
-                (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc-load-prop (a b) (+ a b))")))
+                (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc-load-prop a b -> (+ a b))")))
             
             (after-each
               ;; Clean up temp files
@@ -364,10 +364,10 @@
               
               ;; Write content to temp files
               (with-temp-file temp-file-path
-                (insert "@doc \"Adds two numbers\"\n(ldef add-doc-load-file (a b) (+ a b))"))
+                (insert "@doc \"Adds two numbers\"\n(ldef add-doc-load-file a b -> (+ a b))"))
               
               (with-temp-file temp-file-with-prop
-                (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc-load-file-prop (a b) (+ a b))")))
+                (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc-load-file-prop a b -> (+ a b))")))
             
             (after-each
               ;; Clean up temp files
@@ -401,14 +401,14 @@
           (test-it "throws error when l-syntax is nil"
                    (let ((l-syntax nil))
                      (with-temp-buffer
-                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc (a b) (+ a b))")
+                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc a b -> (+ a b))")
                        (goto-char (point-max))
                        (expect (eval-buffer nil) :to-throw))))
           
           (test-it "works when l-syntax is nil but prop variable is set"
                    (let ((l-syntax nil))
                      (with-temp-buffer
-                       (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc (a b) (+ a b))")
+                       (insert ";; -*- l-syntax: t; -*-\n@doc \"Adds two numbers\"\n(ldef add-doc a b -> (+ a b))")
                        (goto-char (point-max))
                        (eval-buffer nil)
                        (expect (string-match-p "Adds two numbers"
@@ -417,7 +417,7 @@
           (test-it "works when l-syntax is bound to t in let"
                    (let ((l-syntax t))
                      (with-temp-buffer
-                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc (a b) (+ a b))")
+                       (insert "@doc \"Adds two numbers\"\n(ldef add-doc a b -> (+ a b))")
                        (goto-char (point-max))
                        (eval-buffer nil)
                        (expect (string-match-p "Adds two numbers"

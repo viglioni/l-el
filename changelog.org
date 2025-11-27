@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+** Breaking Changes
+- =ldef= now requires arrow (=->=) syntax to separate arguments from body
+  - Old syntax: =(ldef add (x y) (+ x y))=
+  - New syntax: =(ldef add x y -> (+ x y))=
+  - This aligns =ldef= with the =l= lambda macro syntax for consistency
+  - Pattern matching, type matching, and value matching still work the same way
+  - Arguments before =->= are parameter patterns: =x=, =(x :integer)=, =(x 0)=, etc.
+
+** Changed
+- Redesigned type specificity system to use lexicographic ordering instead of point-based scoring
+  - Prevents multiple category types from outscoring single primitive types
+  - Ensures primitive types (=:list=, =:integer=, =:string=) always match before category types (=:sequence=, =:array=, =:number=)
+  - Specificity now uses string concatenation: value ("d") > parameterized ("c") > primitive ("b") > category ("a") > wildcard ("0")
+  - Example: ="b"= (one primitive) > ="aaa"= (three categories)
+- Added =l-instanceof= utility function for checking if an element matches a type (keyword or struct/class)
+- Categorized types into =l-generic-primitive-types= and =l-generic-category-types= for proper specificity handling
+- Enhanced =l-raise= to support =invalid-rest-parameter= error type
+- Improved =&rest= validation in =ldef= to detect misuse in nested argument patterns
+
 * 0.5.0 - 2025-11-26
 
 ** Added

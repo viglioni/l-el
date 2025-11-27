@@ -1,14 +1,9 @@
 #+title: l-mode
 
-=l-mode= is a major mode done over =emacs-lisp-mode= to help highlight syntax of specific =l.el= features, such as elixir-like documentation in =ldef=:
+=l-mode= is a major mode built on top of =emacs-lisp-mode= that provides enhanced syntax highlighting for =l.el= features, including:
 
-#+begin_src elisp :exports both :results output 
-  @doc "A function that returns the nth Fibonacci number.
-  This function grows exponentially.
-  "
-  (ldef fib ((n 0)) 0)
-  (ldef fib ((n 1)) 1)
-  (ldef fib ((n :integer))
-        (+ (fib (- n 1))
-           (fib (- n 2))))
-#+end_src
+- Elixir-style =@doc= documentation annotations
+- Special highlighting for s-expressions and escaped strings in docstrings
+- Automatic activation when =l-syntax= is enabled
+
+For complete documentation and examples, see the [[../../docs/api.org][API Reference]].

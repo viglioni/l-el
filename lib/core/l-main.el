@@ -57,6 +57,7 @@
 
 (require 'cl-lib)
 (require 'l-generic)
+(require 'l-exception)
 
 (defgroup l nil
   "Modern functional programming utilities for Emacs Lisp."
@@ -86,57 +87,75 @@ INIT-ARGS are the initial arguments to partially apply to FN."
   (lambda (&rest args)
     (apply fn (append init-args args))))
 
-(defmacro ldef (name args &rest body)
+(defmacro ldef (name &rest args-and-body)
   "Define autocurried functions with pattern matching support.
 
 Creates a function NAME that automatically curries when called with fewer
 arguments and supports pattern matching on arguments.
 
-ARGS is a list of parameter patterns supporting:
-- Regular parameters: arg
-- Wildcards: _ignore, _var (bind but conventionally ignore)
-- Type matches: (arg :integer), (arg :string), etc.
-- Value matches: (arg \"specific-value\"), (arg 42), etc.
+NEW SYNTAX (using -> separator):
+  (ldef name arg1 arg2 ... -> body...)
 
-Methods are ordered by specificity (most specific first):
-1. Value matches (1000 points each)
-2. Type matches (100 points each)
-3. Wildcards (1 point each)
+Arguments before -> are parameter patterns supporting:
+- Regular parameters: x, y, z
+- Type matches: (x :integer), (y :string), etc.
+- Value matches: (x 0), (y \"value\"), etc.
+- Wildcards: _ignore, _var (bind but conventionally ignore)
+
+Methods are ordered by specificity (lexicographically):
+- Value matches: \"d\" (most specific)
+- Parameterized types: \"c\"
+- Primitive types: \"b\"
+- Category types: \"a\"
+- Wildcards: \"0\" (least specific)
 
 PATTERN MATCHING:
 Arguments can be specified as either symbols or lists for pattern matching.
 - Symbol: x - matches any value, binds to x
 - Wildcard: _ignore - matches any value, binds but conventionally ignored
 - Type match: (x :integer) - matches only when x satisfies integerp
-- Value match: (x \"value\") - matches only when x equals \"value\"
+- Value match: (x 0) - matches only when x equals 0
 
 Pattern matching examples:
-  (ldef fib ((n 0)) 0)                    ;; matches when n = 0
-  (ldef fib ((n 1)) 1)                    ;; matches when n = 1
-  (ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
+  (ldef fib (n 0) -> 0)                    ;; matches when n = 0
+  (ldef fib (n 1) -> 1)                    ;; matches when n = 1
+  (ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
 
-  (ldef greet ((name \"Alice\")) \"Hello, Alice!\")  ;; matches \"Alice\"
-  (ldef greet (name) (concat \"Hi, \" name \"!\"))   ;; general case
+  (ldef greet (name \"Alice\") -> \"Hello, Alice!\")  ;; matches \"Alice\"
+  (ldef greet name -> (concat \"Hi, \" name \"!\"))   ;; general case
 
-  (ldef calc ((op '+) x y) (+ x y))       ;; matches when op = '+
-  (ldef calc ((op '*) x y) (* x y))       ;; matches when op = '*
-  (ldef calc (_op _x _y) (error \"Unknown operation\"))  ;; fallback
+  (ldef calc (op '+) x y -> (+ x y))       ;; matches when op = '+
+  (ldef calc (op '*) x y -> (* x y))       ;; matches when op = '*
+  (ldef calc _op _x _y -> (error \"Unknown operation\"))  ;; fallback
 
 CURRYING:
 Functions defined with ldef automatically curry when called
 with fewer arguments.
 
 Currying examples:
-  (ldef add3 (x y z) (+ x y z))
+  (ldef add3 x y z -> (+ x y z))
   (add3 1 2 3)        ;; => 6 (full application)
   (funcall (add3 1) 2 3)  ;; => 6 (partial application)
   (funcall (funcall (add3 1) 2) 3)  ;; => 6 (chained partial)
 
 NAME is the function name to define.
-ARGS is a list of parameter patterns.
-BODY is the function body to execute when pattern matches and fully applied."
-  
-  `(l-generic ,name ,args ,@body))
+ARGS-AND-BODY contains arguments, ->, and body expressions."
+
+  ;; Find the -> separator
+  (let ((arrow-pos (cl-position '-> args-and-body)))
+    (unless arrow-pos
+      (error "ldef requires -> separator between arguments and body"))
+
+    (let ((args (cl-subseq args-and-body 0 arrow-pos))
+          (body (cl-subseq args-and-body (1+ arrow-pos))))
+      ;; Check for &rest in args (either directly or in nested lists)
+      (when (cl-some (lambda (arg)
+                       (or (eq arg '&rest)
+                           (and (listp arg) (memq '&rest arg))))
+                     args)
+        (signal 'l-invalid-rest-parameter-error
+                (list name "Use (param :rest) instead of &rest")))
+      `(l-generic ,name ,args ,@body))))
 
 (defmacro with-l (&rest body)
   "Transform expressions to support curried function call syntax.

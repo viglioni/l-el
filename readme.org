@@ -43,20 +43,20 @@ All versions are tested on every push via [[https://github.com/viglioni/l-el/act
 _{This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in this setup.}_
 
 
-#+begin_src elisp :exports both :results output 
+#+begin_src elisp :exports both :results output
   ;; -*- l-syntax: t; -*-
 
   @doc "A function that returns the nth Fibonacci number.
   This function grows exponentially and demonstrates pattern matching."
-  (ldef fib ((n 0)) 0)
-  (ldef fib ((n 1)) 1)
-  (ldef fib ((n :integer))
+  (ldef fib (n 0) -> 0)
+  (ldef fib (n 1) -> 1)
+  (ldef fib (n :integer) ->
         (+ (fib (- n 1))
            (fib (- n 2))))
 
   @doc "This function calculates delta in a quadratic function
   and demonstrates automatic currying capabilities."
-  (ldef delta ((a :number) (b :number) (c :number))
+  (ldef delta (a :number) (b :number) (c :number) ->
         (- (* b b) (* 4 a c)))
 
   ;; Multiple calling styles with automatic currying:
@@ -65,12 +65,12 @@ _{This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in th
   (funcall (delta 1 2) 3) ;; Partial with funcall
 
   @doc "Sum function with rest parameters for variadic arguments."
-  (ldef sum ((nums :rest)) (apply '+ nums))
+  (ldef sum (nums :rest) -> (apply '+ nums))
   (sum 1 2 3 4 5)      ;; => 15
 
   @doc "Greeting function with value-based pattern matching."
-  (ldef greet ((name "Alice")) "Hello, Alice!")
-  (ldef greet ((name :string)) (concat "Hi, " name "!"))
+  (ldef greet (name "Alice") -> "Hello, Alice!")
+  (ldef greet (name :string) -> (concat "Hi, " name "!"))
   (greet "Alice")      ;; => "Hello, Alice!"
   (greet "Bob")        ;; => "Hi, Bob!"
 #+end_src

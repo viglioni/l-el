@@ -2,7 +2,8 @@
 
 In this part of the library, we define functions/macros that use =l.el= core features, such as =ldef= and =l-syntax=.
 
-In this part of the code we have:
+** Contents
 
-** l-function.el
-- =lcomp=: function composition  
+- =l-function.el=: Function composition and piping utilities (=lcomp=, =lpipe=)
+
+For complete documentation and examples, see the [[../../docs/api.org][API Reference]].

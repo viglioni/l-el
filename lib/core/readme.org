@@ -1,33 +1,5 @@
 #+title: l.el core
 
-In this directory we define the main macros to create =ldef=, which has pattern matching, type matching and autocurry and also =l-syntax= that allows function calls without calling =funcall= and =ldef= documentation elixir style. Example:
+In this directory we define the main macros to create =ldef=, which has pattern matching, type matching and autocurry and also =l-syntax= that allows function calls without calling =funcall= and =ldef= documentation elixir style.
 
-#+begin_src elisp :exports both :results output 
-  ;; -*- l-syntax: t; -*-
-  ;; we can also set locally/globally l-syntax to t
-  ;; if not, this syntax will work in regular elisp using
-  ;; (with-l) macro around the code.
-
-  @doc "A function that returns the nth Fibonacci number.
-  This function grows exponentially.
-  "
-  (ldef fib ((n 0)) 0)
-  (ldef fib ((n 1)) 1)
-  (ldef fib ((n :integer))
-        (+ (fib (- n 1))
-           (fib (- n 2))))
-
-
-
-  @doc "This function calculates delta in a quadratic function"
-
-  (ldef delta ((a :number) (b :number) (c :number))
-        (- (* b b) (* 4 a c)))
-
-  ;; it can be called in multiple ways:
-
-  ((((delta) 1 ) 2) 3) ;; as it has auto currying but no need to use `funcall'
-  (delta 1 2 3)        ;; evaluates the same result
-#+end_src
-
-There are more into it, check =l-main= for more documentation on each function.
+For complete documentation and examples, see the [[../../docs/api.org][API Reference]].

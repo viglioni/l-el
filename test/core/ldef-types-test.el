@@ -5,8 +5,8 @@
 (context "ldef type matching"
   (describe "basic type matching"
     (before-all
-      (ldef type-add ((x :integer) (y :integer)) (+ x y))
-      (ldef type-add (x y) "not integers"))
+      (ldef type-add (x :integer) (y :integer) -> (+ x y))
+      (ldef type-add x y -> "not integers"))
 
     (test-it "matches integer types"
       (expect (type-add 5 3) :to-equal 8)
@@ -24,9 +24,9 @@
 
   (describe "multiple type specializers"
     (before-all
-      (ldef multi-type ((x :string) (y :integer)) (concat x " " (number-to-string y)))
-      (ldef multi-type ((x :integer) (y :string)) (concat (number-to-string x) " " y))
-      (ldef multi-type (x y) "mixed types"))
+      (ldef multi-type (x :string) (y :integer) -> (concat x " " (number-to-string y)))
+      (ldef multi-type (x :integer) (y :string) -> (concat (number-to-string x) " " y))
+      (ldef multi-type x y -> "mixed types"))
 
     (test-it "matches string-integer combination"
       (expect (multi-type "count" 42) :to-equal "count 42"))
@@ -40,11 +40,11 @@
 
   (describe "various type specializers"
     (before-all
-      (ldef type-processor ((x :symbol)) (symbol-name x))
-      (ldef type-processor ((x :string)) (upcase x))
-      (ldef type-processor ((x :list)) (length x))
-      (ldef type-processor ((x nil)) (length x))
-      (ldef type-processor (x) "unknown type"))
+      (ldef type-processor (x :symbol) -> (symbol-name x))
+      (ldef type-processor (x :string) -> (upcase x))
+      (ldef type-processor (x :list) -> (length x))
+      (ldef type-processor (x nil) -> (length x))
+      (ldef type-processor x -> "unknown type"))
 
     (test-it "matches symbol type"
       (expect (type-processor 'hello) :to-equal "hello")
@@ -64,8 +64,8 @@
 
   (describe "array type matcher"
     (before-all
-      (ldef array-handler ((x :array)) (cons 'array (length x)))
-      (ldef array-handler (x) 'not-array))
+      (ldef array-handler (x :array) -> (cons 'array (length x)))
+      (ldef array-handler x -> 'not-array))
 
     (test-it "matches vectors"
       (expect (array-handler [1 2 3]) :to-equal '(array . 3))
@@ -84,8 +84,8 @@
 
   (describe "sequence type matcher"
     (before-all
-      (ldef seq-handler ((x :sequence)) (cons 'sequence (length x)))
-      (ldef seq-handler (x) 'not-sequence))
+      (ldef seq-handler (x :sequence) -> (cons 'sequence (length x)))
+      (ldef seq-handler x -> 'not-sequence))
 
     (test-it "matches lists"
       (expect (seq-handler '(1 2 3)) :to-equal '(sequence . 3))
@@ -105,10 +105,10 @@
 
   (describe "mixed type and value matching"
     (before-all
-      (ldef mixed-matcher ((x :integer) (y 0)) "integer and zero")
-      (ldef mixed-matcher ((x :string) (y "test")) "string and test")
-      (ldef mixed-matcher ((x :integer) y) (+ x y))
-      (ldef mixed-matcher (x y) "fallback"))
+      (ldef mixed-matcher (x :integer) (y 0) -> "integer and zero")
+      (ldef mixed-matcher (x :string) (y "test") -> "string and test")
+      (ldef mixed-matcher (x :integer) y -> (+ x y))
+      (ldef mixed-matcher x y -> "fallback"))
 
     (test-it "matches type-value combination"
       (expect (mixed-matcher 42 0) :to-equal "integer and zero")
@@ -124,8 +124,8 @@
 
   (describe "alist type matcher"
     (before-all
-      (ldef alist-handler ((x :alist)) (cons 'alist (length x)))
-      (ldef alist-handler (x) 'not-alist))
+      (ldef alist-handler (x :alist) -> (cons 'alist (length x)))
+      (ldef alist-handler x -> 'not-alist))
 
     (test-it "matches alists"
       (expect (alist-handler '((a . 1) (b . 2))) :to-equal '(alist . 2))
@@ -144,8 +144,8 @@
 
   (describe "plist type matcher"
     (before-all
-      (ldef plist-handler ((x :plist)) (cons 'plist (/ (length x) 2)))
-      (ldef plist-handler (x) 'not-plist))
+      (ldef plist-handler (x :plist) -> (cons 'plist (/ (length x) 2)))
+      (ldef plist-handler x -> 'not-plist))
 
     (test-it "matches plists"
       (expect (plist-handler '(:name "Alice" :age 30)) :to-equal '(plist . 2))
@@ -164,8 +164,8 @@
   (describe "struct type matcher"
     (before-all
       (cl-defstruct test-struct name age)
-      (ldef struct-handler ((x :struct)) (cons 'struct (type-of x)))
-      (ldef struct-handler (x) 'not-struct))
+      (ldef struct-handler (x :struct) -> (cons 'struct (type-of x)))
+      (ldef struct-handler x -> 'not-struct))
 
     (test-it "matches cl-defstruct instances"
       (let ((obj (make-test-struct :name "Alice" :age 30)))
@@ -181,8 +181,8 @@
       (defclass test-class ()
         ((name :initarg :name)
          (age :initarg :age)))
-      (ldef object-handler ((x :object)) (cons 'object (eieio-object-class x)))
-      (ldef object-handler (x) 'not-object))
+      (ldef object-handler (x :object) -> (cons 'object (eieio-object-class x)))
+      (ldef object-handler x -> 'not-object))
 
     (test-it "matches EIEIO class instances"
       (let ((obj (make-instance 'test-class :name "Alice" :age 30)))
@@ -198,8 +198,8 @@
       (cl-defstruct test-record-struct field)
       (defclass test-record-class ()
         ((field :initarg :field)))
-      (ldef record-handler ((x :record)) (cons 'record (type-of x)))
-      (ldef record-handler (x) 'not-record))
+      (ldef record-handler (x :record) -> (cons 'record (type-of x)))
+      (ldef record-handler x -> 'not-record))
 
     (test-it "matches cl-defstruct instances"
       (let ((obj (make-test-record-struct :field 42)))
@@ -219,8 +219,8 @@
       (cl-defstruct test-instance-struct data)
       (defclass test-instance-class ()
         ((data :initarg :data)))
-      (ldef instance-handler ((x :instance)) (cons 'instance (type-of x)))
-      (ldef instance-handler (x) 'not-instance))
+      (ldef instance-handler (x :instance) -> (cons 'instance (type-of x)))
+      (ldef instance-handler x -> 'not-instance))
 
     (test-it "matches cl-defstruct instances"
       (let ((obj (make-test-instance-struct :data 42)))
@@ -245,10 +245,10 @@
       (defclass employee ()
         ((id :initarg :id)))
 
-      (ldef shape-processor ((s :instance_of point)) "processing point")
-      (ldef shape-processor ((s :instance_of circle)) "processing circle")
-      (ldef shape-processor ((s :struct)) "processing generic struct")
-      (ldef shape-processor (s) "not a struct"))
+      (ldef shape-processor (s :instance_of point) -> "processing point")
+      (ldef shape-processor (s :instance_of circle) -> "processing circle")
+      (ldef shape-processor (s :struct) -> "processing generic struct")
+      (ldef shape-processor s -> "not a struct"))
 
     (test-it "matches specific struct type"
       (let ((p (make-point :x 10 :y 20)))
@@ -268,9 +268,9 @@
       (expect (shape-processor 42) :to-equal "not a struct"))
 
     (test-it "works with EIEIO classes"
-      (ldef person-processor ((p :instance_of person)) "processing person")
-      (ldef person-processor ((e :instance_of employee)) "processing employee")
-      (ldef person-processor (x) "not a person or employee")
+      (ldef person-processor (p :instance_of person) -> "processing person")
+      (ldef person-processor (e :instance_of employee) -> "processing employee")
+      (ldef person-processor x -> "not a person or employee")
 
       (let ((p (make-instance 'person :name "Alice" :age 30))
             (e (make-instance 'employee :id 123)))
@@ -278,9 +278,9 @@
         (expect (person-processor e) :to-equal "processing employee")))
 
     (test-it "specificity: instance_of > generic type > wildcard"
-      (ldef specificity-test ((x :instance_of point)) "specific point")
-      (ldef specificity-test ((x :struct)) "any struct")
-      (ldef specificity-test (x) "anything")
+      (ldef specificity-test (x :instance_of point) -> "specific point")
+      (ldef specificity-test (x :struct) -> "any struct")
+      (ldef specificity-test x -> "anything")
 
       (let ((p (make-point :x 1 :y 2))
             (c (make-circle :center '(0 0) :radius 1)))
@@ -290,11 +290,11 @@
 
   (describe "list_of type matcher (parameterized)"
     (before-all
-      (ldef sum-integers ((nums :list_of :integer)) (apply #'+ nums))
-      (ldef sum-integers (nums) "not a list of integers")
+      (ldef sum-integers (nums :list_of :integer) -> (apply #'+ nums))
+      (ldef sum-integers nums -> "not a list of integers")
 
-      (ldef process-strings ((strs :list_of :string)) (mapconcat #'upcase strs " "))
-      (ldef process-strings (strs) "not a list of strings"))
+      (ldef process-strings (strs :list_of :string) -> (mapconcat #'upcase strs " "))
+      (ldef process-strings strs -> "not a list of strings"))
 
     (test-it "matches list of integers"
       (expect (sum-integers '(1 2 3 4 5)) :to-equal 15)
@@ -315,17 +315,17 @@
       (expect (process-strings '("foo")) :to-equal "FOO"))
 
     (test-it "works with other type keywords"
-      (ldef process-symbols ((syms :list_of :symbol)) (length syms))
-      (ldef process-symbols (x) -1)
+      (ldef process-symbols (syms :list_of :symbol) -> (length syms))
+      (ldef process-symbols x -> -1)
 
       (expect (process-symbols '(a b c)) :to-equal 3)
       (expect (process-symbols '(foo bar)) :to-equal 2)
       (expect (process-symbols '(a "b")) :to-equal -1))
 
     (test-it "specificity: list_of > generic list > wildcard"
-      (ldef list-processor ((lst :list_of :integer)) "list of integers")
-      (ldef list-processor ((lst :list)) "any list")
-      (ldef list-processor (x) "anything")
+      (ldef list-processor (lst :list_of :integer) -> "list of integers")
+      (ldef list-processor (lst :list) -> "any list")
+      (ldef list-processor x -> "anything")
 
       (expect (list-processor '(1 2 3)) :to-equal "list of integers")
       (expect (list-processor '(1 "2" 3)) :to-equal "any list")
@@ -338,13 +338,13 @@
       (defclass shape ()
         ((name :initarg :name)))
 
-      (ldef process-points-2d ((pts :list_of_instances point-2d))
+      (ldef process-points-2d (pts :list_of_instances point-2d) ->
         (mapcar (lambda (p) (+ (point-2d-x p) (point-2d-y p))) pts))
-      (ldef process-points-2d (pts) "not a list of point-2d")
+      (ldef process-points-2d pts -> "not a list of point-2d")
 
-      (ldef process-shapes ((shapes :list_of_instances shape))
+      (ldef process-shapes (shapes :list_of_instances shape) ->
         (length shapes))
-      (ldef process-shapes (x) -1))
+      (ldef process-shapes x -> -1))
 
     (test-it "matches list of struct instances"
       (let ((pts (list (make-point-2d :x 1 :y 2)
@@ -372,9 +372,9 @@
         (expect (process-shapes shapes) :to-equal 2)))
 
     (test-it "specificity: list_of_instances > list > wildcard"
-      (ldef shape-handler ((s :list_of_instances shape)) "list of shapes")
-      (ldef shape-handler ((s :list)) "any list")
-      (ldef shape-handler (x) "anything")
+      (ldef shape-handler (s :list_of_instances shape) -> "list of shapes")
+      (ldef shape-handler (s :list) -> "any list")
+      (ldef shape-handler x -> "anything")
 
       (let ((shapes (list (make-instance 'shape :name "circle"))))
         (expect (shape-handler shapes) :to-equal "list of shapes")
@@ -383,16 +383,16 @@
 
   (describe "unknown type predicate errors"
     (test-it "raises l-unknown-type-predicate-error for unknown regular type"
-      (expect (ldef bad-func ((x :invalid-type)) "never matches")
+      (expect (ldef bad-func (x :invalid-type) -> "never matches")
               :to-throw 'l-unknown-type-predicate-error))
 
     (test-it "raises l-unknown-type-predicate-error for unknown parameterized type"
-      (expect (ldef bad-func2 ((x :invalid_param point)) "never matches")
+      (expect (ldef bad-func2 (x :invalid_param point) -> "never matches")
               :to-throw 'l-unknown-type-predicate-error))
 
     (test-it "raises l-unknown-type-predicate-error for invalid list_of type at runtime"
-      (ldef bad-func3 ((x :list_of :invalid-type)) "never matches")
-      (ldef bad-func3 (x) "fallback")
+      (ldef bad-func3 (x :list_of :invalid-type) -> "never matches")
+      (ldef bad-func3 x -> "fallback")
       (expect (bad-func3 '(1 2 3))
               :to-throw 'l-unknown-type-predicate-error))))
 
@@ -471,10 +471,10 @@
   (describe "type specificity - primitive vs category types"
     (describe "primitive types beat category types"
       (before-all
-        (ldef test-prim-vs-cat ((x :sequence)) 'matched-category-sequence)
-        (ldef test-prim-vs-cat ((x :list)) 'matched-primitive-list)
-        (ldef test-prim-vs-cat ((x :vector)) 'matched-primitive-vector)
-        (ldef test-prim-vs-cat ((x :string)) 'matched-primitive-string))
+        (ldef test-prim-vs-cat (x :sequence) -> 'matched-category-sequence)
+        (ldef test-prim-vs-cat (x :list) -> 'matched-primitive-list)
+        (ldef test-prim-vs-cat (x :vector) -> 'matched-primitive-vector)
+        (ldef test-prim-vs-cat (x :string) -> 'matched-primitive-string))
 
       (test-it "list matches primitive :list over category :sequence"
         (expect (test-prim-vs-cat '(1 2 3)) :to-equal 'matched-primitive-list))
@@ -487,8 +487,8 @@
 
     (describe "multiple category types never beat single primitive"
       (before-all
-        (ldef test-multi-cat ((a :sequence) (b :sequence) (c :sequence)) 'matched-three-categories)
-        (ldef test-multi-cat ((a :list)) 'matched-one-primitive))
+        (ldef test-multi-cat (a :sequence) (b :sequence) (c :sequence) -> 'matched-three-categories)
+        (ldef test-multi-cat (a :list) -> 'matched-one-primitive))
 
       (test-it "single primitive :list beats three category :sequence types"
         (expect (test-multi-cat '(1 2 3)) :to-equal 'matched-one-primitive)))
@@ -530,9 +530,9 @@
 
     (describe "number types - primitive vs category"
       (before-all
-        (ldef test-number-specificity ((x :number)) 'matched-category-number)
-        (ldef test-number-specificity ((x :integer)) 'matched-primitive-integer)
-        (ldef test-number-specificity ((x :float)) 'matched-primitive-float))
+        (ldef test-number-specificity (x :number) -> 'matched-category-number)
+        (ldef test-number-specificity (x :integer) -> 'matched-primitive-integer)
+        (ldef test-number-specificity (x :float) -> 'matched-primitive-float))
 
       (test-it "integer matches primitive :integer over category :number"
         (expect (test-number-specificity 42) :to-equal 'matched-primitive-integer))
@@ -542,9 +542,9 @@
 
     (describe "array types - primitive vs category"
       (before-all
-        (ldef test-array-specificity ((x :array)) 'matched-category-array)
-        (ldef test-array-specificity ((x :vector)) 'matched-primitive-vector)
-        (ldef test-array-specificity ((x :string)) 'matched-primitive-string))
+        (ldef test-array-specificity (x :array) -> 'matched-category-array)
+        (ldef test-array-specificity (x :vector) -> 'matched-primitive-vector)
+        (ldef test-array-specificity (x :string) -> 'matched-primitive-string))
 
       (test-it "vector matches primitive :vector over category :array"
         (expect (test-array-specificity [1 2 3]) :to-equal 'matched-primitive-vector))

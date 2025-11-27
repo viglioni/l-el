@@ -19,7 +19,7 @@
   - [[#l-require-feature-optional-filename-noerror][l-require (feature &optional filename noerror)]]
   - [[#l-syntax-advices][l-syntax-advices]]
   - [[#l-syntax-remove-advices][l-syntax-remove-advices]]
-  - [[#ldef-name-args-rest-body][ldef (name args &rest body)]]
+  - [[#ldef-name-rest-args-and-body][ldef (name &rest args-and-body)]]
   - [[#lpartial-fn-rest-init-args][lpartial (fn &rest init-args)]]
   - [[#with-l-rest-body][with-l (&rest body)]]
 - [[#utilities][Utilities]]
@@ -79,12 +79,12 @@ This macro provides Elixir-style documentation annotations for =ldef= functions.
 #+begin_src emacs-lisp
 @doc "Calculate the nth Fibonacci number.
 This implementation uses pattern matching for base cases."
-(ldef fib ((n 0)) 0)
-(ldef fib ((n 1)) 1)
-(ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))
+(ldef fib (n 0) -> 0)
+(ldef fib (n 1) -> 1)
+(ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))
 
 @doc "Add two numbers together."
-(ldef add (x y) (+ x y))
+(ldef add x y -> (+ x y))
 #+end_src
 
 ** =l (&rest expr)=
@@ -140,7 +140,7 @@ This is useful for:
 *** Examples:
 #+begin_src emacs-lisp
 ;; Define a generic function
-(ldef my-func (x) (+ x 1))
+(ldef my-func x -> (+ x 1))
 
 ;; Remove the function completely
 (l-generic-cleanup 'my-func)
@@ -212,15 +212,23 @@ Remove advice from evaluation functions for l syntax support.
 
 This function removes around advice from =eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and =load= that was added by =l-syntax-advices=.
 
-** =ldef (name args &rest body)=
+** =ldef (name &rest args-and-body)=
 
 Define autocurried functions with pattern matching support.
 
 Creates a function NAME that automatically curries when called with fewer arguments and supports pattern matching on arguments. Multiple definitions with the same NAME but different patterns create a generic function with multiple methods.
 
+*** Syntax
+
+#+begin_src emacs-lisp
+(ldef name arg1 arg2 ... -> body...)
+#+end_src
+
+Arguments before =->= are parameter patterns. Body follows after =->= .
+
 *** Parameter Patterns
 
-ARGS is a list of parameter patterns supporting:
+Arguments support:
 - Regular parameters: =arg= - matches any value, binds to =arg=
 - Wildcards: =_= or =_name= - matches any value, conventionally ignored
 - Type matches: =(arg :type)= - matches when =arg= satisfies the type predicate
@@ -241,18 +249,18 @@ The method with the highest total specificity is called first.
 
 **** Basic value matching:
 #+begin_src emacs-lisp
-(ldef fib ((n 0)) 0)                    ;; matches when n = 0
-(ldef fib ((n 1)) 1)                    ;; matches when n = 1
-(ldef fib (n) (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
+(ldef fib (n 0) -> 0)                    ;; matches when n = 0
+(ldef fib (n 1) -> 1)                    ;; matches when n = 1
+(ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
 
 (fib 10)  ;; => 55
 #+end_src
 
 **** String and symbol matching:
 #+begin_src emacs-lisp
-(ldef greet ((name "Alice")) "Hello, Alice!")  ;; matches "Alice"
-(ldef greet ((name "Bob")) "Hey, Bob!")        ;; matches "Bob"
-(ldef greet (name) (concat "Hi, " name "!"))   ;; general case
+(ldef greet (name "Alice") -> "Hello, Alice!")  ;; matches "Alice"
+(ldef greet (name "Bob") -> "Hey, Bob!")        ;; matches "Bob"
+(ldef greet name -> (concat "Hi, " name "!"))   ;; general case
 
 (greet "Alice")  ;; => "Hello, Alice!"
 (greet "Bob")    ;; => "Hey, Bob!"
@@ -261,10 +269,10 @@ The method with the highest total specificity is called first.
 
 **** Type matching:
 #+begin_src emacs-lisp
-(ldef process ((x :integer)) (* x 2))
-(ldef process ((x :string)) (upcase x))
-(ldef process ((x :list)) (length x))
-(ldef process (x) "unknown type")
+(ldef process (x :integer) -> (* x 2))
+(ldef process (x :string) -> (upcase x))
+(ldef process (x :list) -> (length x))
+(ldef process x -> "unknown type")
 
 (process 5)           ;; => 10
 (process "hello")     ;; => "HELLO"
@@ -274,10 +282,10 @@ The method with the highest total specificity is called first.
 
 **** Multiple parameters with patterns:
 #+begin_src emacs-lisp
-(ldef calc ((op '+) x y) (+ x y))
-(ldef calc ((op '-) x y) (- x y))
-(ldef calc ((op '*) x y) (* x y))
-(ldef calc (_op _x _y) (error "Unknown operation"))
+(ldef calc (op '+) x y -> (+ x y))
+(ldef calc (op '-) x y -> (- x y))
+(ldef calc (op '*) x y -> (* x y))
+(ldef calc _op _x _y -> (error "Unknown operation"))
 
 (calc '+ 10 5)  ;; => 15
 (calc '- 10 5)  ;; => 5
@@ -287,26 +295,26 @@ The method with the highest total specificity is called first.
 **** Complex data structure matching:
 #+begin_src emacs-lisp
 ;; Alists
-(ldef handle-config ((cfg '((debug . t)))) "debug mode")
-(ldef handle-config (cfg) "normal mode")
+(ldef handle-config (cfg '((debug . t))) -> "debug mode")
+(ldef handle-config cfg -> "normal mode")
 
 ;; Plists
-(ldef handle-opts ((opts '(:verbose t))) "verbose")
-(ldef handle-opts (opts) "quiet")
+(ldef handle-opts (opts '(:verbose t)) -> "verbose")
+(ldef handle-opts opts -> "quiet")
 
 ;; Vectors
-(ldef process-vec ((v [])) "empty")
-(ldef process-vec ((v [1 2 3])) "one-two-three")
-(ldef process-vec (v) "other")
+(ldef process-vec (v []) -> "empty")
+(ldef process-vec (v [1 2 3]) -> "one-two-three")
+(ldef process-vec v -> "other")
 
 ;; Nested structures
-(ldef handle ((data '(:type list :items ((a . b))))) "matched")
+(ldef handle (data '(:type list :items ((a . b)))) -> "matched")
 #+end_src
 
 **** Wildcards:
 #+begin_src emacs-lisp
-(ldef ignore-first (_ x) x)
-(ldef ignore-middle (a _ _ d) (list a d))
+(ldef ignore-first _ x -> x)
+(ldef ignore-middle a _ _ d -> (list a d))
 
 (ignore-first 1 2)        ;; => 2
 (ignore-middle 1 2 3 4)   ;; => (1 4)
@@ -317,11 +325,11 @@ The method with the highest total specificity is called first.
 The =:rest= type collects all remaining arguments into a list. It must be the last parameter.
 
 #+begin_src emacs-lisp
-(ldef sum ((nums :rest)) (apply '+ nums))
+(ldef sum (nums :rest) -> (apply '+ nums))
 
 (sum 1 2 3 4 5)  ;; => 15
 
-(ldef format-with-prefix ((prefix :string) (args :rest))
+(ldef format-with-prefix (prefix :string) (args :rest) ->
       (apply 'format (concat prefix ": %s") args))
 
 (format-with-prefix "Error" "file not found")  ;; => "Error: file not found"
@@ -332,7 +340,7 @@ The =:rest= type collects all remaining arguments into a list. It must be the la
 Functions defined with =ldef= automatically curry when called with fewer arguments than defined.
 
 #+begin_src emacs-lisp
-(ldef add3 (x y z) (+ x y z))
+(ldef add3 x y z -> (+ x y z))
 
 ;; Full application
 (add3 1 2 3)  ;; => 6
@@ -354,7 +362,7 @@ Functions defined with =ldef= automatically curry when called with fewer argumen
 When no pattern matches the provided arguments, an error is raised:
 
 #+begin_src emacs-lisp
-(ldef only-integers ((x :integer)) x)
+(ldef only-integers (x :integer) -> x)
 
 (only-integers 5)       ;; => 5
 (only-integers "hello") ;; => error: No matching method
@@ -403,7 +411,7 @@ Macros inside =with-l= are expanded before transformation, so macros like =lcomp
 
 ;; Multiple expressions
 (with-l
-  (ldef my-add (x y) (+ x y))
+  (ldef my-add x y -> (+ x y))
   ((my-add 1) 2))  ;; => 3
 #+end_src
 
@@ -493,11 +501,11 @@ Examples:
 (cl-defstruct point x y)
 (defclass person () ((name :initarg :name)))
 
-(ldef process-point ((p :instance_of point))
+(ldef process-point (p :instance_of point) ->
   ;; Only matches point structs
   (format "Point at %d,%d" (point-x p) (point-y p)))
 
-(ldef greet-person ((p :instance_of person))
+(ldef greet-person (p :instance_of person) ->
   ;; Only matches person class instances
   (format "Hello %s" (oref p name)))
 #+end_src
@@ -508,15 +516,15 @@ Usage: =(param :list_of :type-keyword)=
 
 Examples:
 #+begin_src emacs-lisp
-(ldef sum-integers ((nums :list_of :integer))
+(ldef sum-integers (nums :list_of :integer) ->
   ;; Only matches lists where every element is an integer
   (apply #'+ nums))
 
-(ldef join-strings ((strs :list_of :string))
+(ldef join-strings (strs :list_of :string) ->
   ;; Only matches lists where every element is a string
   (mapconcat #'identity strs ", "))
 
-(ldef process-symbols ((syms :list_of :symbol))
+(ldef process-symbols (syms :list_of :symbol) ->
   ;; Works with any type keyword from l-generic-type-predicates
   (length syms))
 #+end_src
@@ -530,11 +538,11 @@ Examples:
 (cl-defstruct point x y)
 (defclass shape () ((name :initarg :name)))
 
-(ldef process-points ((pts :list_of_instances point))
+(ldef process-points (pts :list_of_instances point) ->
   ;; Only matches lists where every element is a point struct
   (mapcar (lambda (p) (+ (point-x p) (point-y p))) pts))
 
-(ldef draw-shapes ((shapes :list_of_instances shape))
+(ldef draw-shapes (shapes :list_of_instances shape) ->
   ;; Only matches lists where every element is a shape instance
   (mapcar (lambda (s) (oref s name)) shapes))
 #+end_src

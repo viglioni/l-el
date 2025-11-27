@@ -89,7 +89,14 @@ CONTEXT is an optional string describing where the error occurred
               (list type-keyword context)
             (list type-keyword))))
 
-(cl-defun l-raise (error-type &key predicate value context function-name expected actual args format-string)
+(defun l--raise-invalid-rest-parameter (function-name message)
+  "Raise an invalid rest parameter error.
+FUNCTION-NAME is the name of the function being defined.
+MESSAGE is a string describing the specific validation error."
+  (signal 'l-invalid-rest-parameter-error
+          (list function-name message)))
+
+(cl-defun l-raise (error-type &key predicate value context function-name expected actual args format-string message)
   "Raise an error of ERROR-TYPE with appropriate arguments.
 
 ERROR-TYPE determines the kind of error to signal.
@@ -98,6 +105,7 @@ Supported error types:
   \\='arity-error - Wrong number of arguments
   \\='pattern-match - Pattern match failure
   \\='unknown-type-predicate - Unknown type predicate
+  \\='invalid-rest-parameter - Invalid :rest parameter usage
   \\='error - Generic l-error
 
 For \\='type-mismatch:
@@ -122,6 +130,11 @@ For \\='unknown-type-predicate:
   :context - Optional context string
   Example: (l-raise \\='unknown-type-predicate :predicate \\=':invalid-type :context \"pattern matching\")
 
+For \\='invalid-rest-parameter:
+  :function-name - Name of the function being defined
+  :message - Description of the validation error
+  Example: (l-raise \\='invalid-rest-parameter :function-name \\='my-func :message \"Only one :rest parameter allowed\")
+
 For \\='error:
   :format-string - Format string for the error message
   :args - List of arguments for the format string
@@ -138,6 +151,9 @@ For \\='error:
 
     ('unknown-type-predicate
      (l--raise-unknown-type-predicate predicate context))
+
+    ('invalid-rest-parameter
+     (l--raise-invalid-rest-parameter function-name message))
 
     ('error
      (apply #'l--raise-error format-string args))
