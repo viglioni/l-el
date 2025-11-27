@@ -498,9 +498,9 @@ This ensures proper dispatch order based on type specificity."
 NAME is the name of the method.
 
 Examples:
-\(ldef foo (a (b :number) (c :rest))...) ;; correct
-\(ldef foo (a (b :rest) (c :rest))...)   ;; incorrect
-\(ldef foo (a (b :rest) (c :string))...) ;; incorrect"
+\(ldef foo a (b :number) (c :rest) -> ...) ;; correct
+\(ldef foo a (b :rest) (c :rest) -> ...)   ;; incorrect - multiple :rest
+\(ldef foo a (b :rest) (c :string) -> ...) ;; incorrect - :rest not last"
   ;; Check for &rest (Emacs native syntax - not allowed)
   (when (memq '&rest pattern-list)
     (l-raise 'invalid-rest-parameter
@@ -549,11 +549,11 @@ After calling this function:
 
 Examples:
   ;; Define a generic function
-  \(ldef my-func (x) (+ x 1))
-  
+  \(ldef my-func x -> (+ x 1))
+
   ;; Remove the function completely
   \(l-generic-cleanup \='my-func)
-  
+
   ;; Function is no longer available
   \(my-func 5)        ;; ERROR: void-function my-func
 

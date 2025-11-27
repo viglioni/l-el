@@ -35,35 +35,43 @@
     
     (message "Preparing release: %s -> %s" current-version new-version)
     
-    ;; Update "since NEXT" to new version in all .el files
+    ;; Update "since NEXT" and "since: NEXT" to new version in all .el files
     (dolist (file (directory-files-recursively default-directory "\\.el$"))
       (with-temp-buffer
         (insert-file-contents file)
-        (when (search-forward ";; since 0.5.0" nil t)
-          (replace-match (format ";; since %s" new-version))
-          (write-region (point-min) (point-max) file)
-          (message "Updated %s" file))))
-
-    ;; Update "since: 0.3.0" to new version in all .el files
-    (dolist (file (directory-files-recursively default-directory "\\.el$"))
-      (with-temp-buffer
-        (insert-file-contents file)
-        (when (search-forward "since: 0.5.0" nil t)
-          (replace-match (format "since: %s" new-version))
-          (write-region (point-min) (point-max) file)
-          (message "Updated %s" file))))
+        (let ((modified nil))
+          (goto-char (point-min))
+          (while (search-forward ";; since NEXT" nil t)
+            (replace-match (format ";; since %s" new-version))
+            (setq modified t))
+          (goto-char (point-min))
+          (while (search-forward "since: NEXT" nil t)
+            (replace-match (format "since: %s" new-version))
+            (setq modified t))
+          (when modified
+            (write-region (point-min) (point-max) file)
+            (message "Updated %s" file)))))
 
     
-    ;; Update version in l.el file
-    (let ((l-file "l.el"))
-      (when (file-exists-p l-file)
-        (with-temp-buffer
-          (insert-file-contents l-file)
+    ;; Update "Version: NEXT" and numeric versions in all .el files
+    (dolist (file (directory-files-recursively default-directory "\\.el$"))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((modified nil))
           (goto-char (point-min))
-          (when (re-search-forward ";; Version: [0-9]+\\.[0-9]+\\.[0-9]+" nil t)
+          ;; Replace "Version: NEXT" with new version
+          (when (re-search-forward ";; Version: NEXT" nil t)
             (replace-match (format ";; Version: %s" new-version))
-            (write-region (point-min) (point-max) l-file)
-            (message "Updated %s" l-file)))))
+            (setq modified t))
+          ;; Also update numeric versions in main files
+          (when (string-match-p "/l\\.el$" file)
+            (goto-char (point-min))
+            (when (re-search-forward ";; Version: [0-9]+\\.[0-9]+\\.[0-9]+" nil t)
+              (replace-match (format ";; Version: %s" new-version))
+              (setq modified t)))
+          (when modified
+            (write-region (point-min) (point-max) file)
+            (message "Updated version in %s" file)))))
     
     ;; Update tag in readme.org
     (let ((readme-file "readme.org"))

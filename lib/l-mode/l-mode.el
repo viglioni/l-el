@@ -89,7 +89,9 @@
 (defun l-highlight-ldef-calls (limit)
   "Font-lock matcher for ldef function calls up to LIMIT.
 Highlights function names at the head of s-expressions if they
-were defined with ldef."
+were defined with ldef.
+
+since: NEXT"
   (let (match-found)
     (while (and (not match-found)
                 (re-search-forward "(\\([^][() \t\n]+\\)" limit t))

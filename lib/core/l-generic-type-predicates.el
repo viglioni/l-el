@@ -141,17 +141,17 @@ Available parameterized types:
 - :instance_of - uses cl-typep to check if a value is an instance of a
   specific struct or class type.
   Usage: (arg :instance_of type-name)
-  Example: (ldef process-point ((p :instance_of point)) ...)
+  Example: (ldef process-point (p :instance_of point) -> ...)
 
 - :list_of - uses l--list-of-p to check if a value is a list where every
   element matches a specific type keyword.
   Usage: (arg :list_of :type-keyword)
-  Example: (ldef sum-integers ((nums :list_of :integer)) ...)
+  Example: (ldef sum-integers (nums :list_of :integer) -> ...)
 
 - :list_of_instances - uses l--list-of-instances-p to check if a value is
   a list where every element is an instance of a specific struct/class type.
   Usage: (arg :list_of_instances type-name)
-  Example: (ldef process-points ((pts :list_of_instances point)) ...)
+  Example: (ldef process-points (pts :list_of_instances point) -> ...)
 
 These are more specific than regular type predicates (which match any
 instance of a category) but less specific than value matches.")

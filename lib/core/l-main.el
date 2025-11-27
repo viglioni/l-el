@@ -38,11 +38,11 @@
 ;;
 ;; Example usage:
 ;;
-;;   (ldef add3 (x y z) (+ x y z))
+;;   (ldef add3 x y z -> (+ x y z))
 ;;   (funcall (add3 1 2) 3) ; => 6
 ;;
-;;   (ldef greet ((name "Alice")) "Hello, Alice!")
-;;   (ldef greet (name) (concat "Hi, " name "!"))
+;;   (ldef greet "Alice" -> "Hello, Alice!")
+;;   (ldef greet name -> (concat "Hi, " name "!"))
 ;;   (greet "Alice") ; => "Hello, Alice!"
 ;;   (greet "Bob")   ; => "Hi, Bob!"
 ;;
@@ -110,22 +110,23 @@ Methods are ordered by specificity (lexicographically):
 - Wildcards: \"0\" (least specific)
 
 PATTERN MATCHING:
-Arguments can be specified as either symbols or lists for pattern matching.
+Arguments support direct value matching and type matching.
 - Symbol: x - matches any value, binds to x
 - Wildcard: _ignore - matches any value, binds but conventionally ignored
+- Direct value: 0, \"Alice\", :success, 'foo - matches when arg equals value
 - Type match: (x :integer) - matches only when x satisfies integerp
-- Value match: (x 0) - matches only when x equals 0
+- List in pattern: (...) - always indicates type matching or rest parameter
 
 Pattern matching examples:
-  (ldef fib (n 0) -> 0)                    ;; matches when n = 0
-  (ldef fib (n 1) -> 1)                    ;; matches when n = 1
+  (ldef fib 0 -> 0)                        ;; matches when arg = 0
+  (ldef fib 1 -> 1)                        ;; matches when arg = 1
   (ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))  ;; general case
 
-  (ldef greet (name \"Alice\") -> \"Hello, Alice!\")  ;; matches \"Alice\"
+  (ldef greet \"Alice\" -> \"Hello, Alice!\")      ;; matches \"Alice\"
   (ldef greet name -> (concat \"Hi, \" name \"!\"))   ;; general case
 
-  (ldef calc (op '+) x y -> (+ x y))       ;; matches when op = '+
-  (ldef calc (op '*) x y -> (* x y))       ;; matches when op = '*
+  (ldef calc '+ x y -> (+ x y))            ;; matches when op = '+
+  (ldef calc '* x y -> (* x y))            ;; matches when op = '*
   (ldef calc _op _x _y -> (error \"Unknown operation\"))  ;; fallback
 
 CURRYING:
@@ -271,6 +272,8 @@ expressions are handled correctly."
 (defun ldefp (name)
   "Return non-nil if NAME is a function defined with ldef.
 Checks if NAME has entries in the generic function registry.
+
+since: NEXT
 
 Examples:
   (ldef my-func x -> (+ x 1))
