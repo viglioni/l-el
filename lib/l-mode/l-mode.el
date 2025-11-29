@@ -116,17 +116,17 @@ since: 1.0.0"
     ;; Matches: (ldef FUNCTION-NAME ...anything... -> ...body...)
     ("(\\(ldef\\)\\s-+\\([^ \t\n()]+\\)"
      (1 font-lock-keyword-face)  ;; ldef keyword itself
-     (2 font-lock-keyword-face)) ;; function name
+     (2 font-lock-function-name-face)) ;; function name
 
     ;; ldef arrow highlighting
-    ;; Matches: -> in ldef definitions
-    ("(ldef\\s-+[^)]*?\\(->\\)"
-     (1 font-lock-keyword-face))
+    ;; Matches: -> in ldef definitions (handles nested parens)
+    ("(ldef\\(?:\\s-\\|.\\|\n\\)*?\\(->\\)"
+     (1 font-lock-constant-face))
 
     ;; ldef function calls highlighting
     ;; Highlights calls to functions defined with ldef
     (l-highlight-ldef-calls
-     (0 font-lock-keyword-face))
+     (0 font-lock-function-name-face))
 
     ;; Strings within ANY docstring (escaped quotes)
     ("\\(\\\\\"\\(?:[^\\\"\\\\]\\|\\\\.\\)*\\\\\"\\)"

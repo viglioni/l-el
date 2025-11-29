@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+** Added
+- =l-version= function to return the current version of l.el
+- Release script now automatically updates =l-version= function during version bumps
+
+** Changed
+- Updated =l-mode= syntax highlighting colors:
+  - =ldef= function names now use =font-lock-function-name-face= (purple) instead of =font-lock-keyword-face=
+  - Arrow (=->=) now uses =font-lock-constant-face= (same color as =@doc=) for better visual consistency
+
 * 1.0.0 - 2025-11-27
 
 ** Breaking Changes

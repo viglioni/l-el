@@ -74,6 +74,17 @@
             (write-region (point-min) (point-max) file)
             (message "Updated version in %s" file)))))
     
+    ;; Update l-version function in l.el
+    (let ((l-file "l.el"))
+      (when (file-exists-p l-file)
+        (with-temp-buffer
+          (insert-file-contents l-file)
+          (goto-char (point-min))
+          (when (re-search-forward "(defun l-version ()\n  \"Return the current version of l.el.\"\n  \"[0-9]+\\.[0-9]+\\.[0-9]+\")" nil t)
+            (replace-match (format "(defun l-version ()\n  \"Return the current version of l.el.\"\n  \"%s\")" new-version))
+            (write-region (point-min) (point-max) l-file)
+            (message "Updated l-version function in %s" l-file)))))
+
     ;; Update tag in readme.org
     (let ((readme-file "readme.org"))
       (when (file-exists-p readme-file)
