@@ -7,11 +7,27 @@ All notable changes to this project will be documented in this file.
 ** Added
 - =l-version= function to return the current version of l.el
 - Release script now automatically updates =l-version= function during version bumps
+- =l-generic-remove-method= function to remove specific implementations from generic functions
+  - Removes only the method matching the given pattern, leaving other implementations intact
+  - Automatically regenerates dispatch function after removal
+  - Example: =(l-generic-remove-method 'lempty '((x :string)))= removes only the string implementation
+- New simplified syntax for struct/class types in =ldef= patterns:
+  - =(param struct-name)= instead of =(param :instance_of struct-name)=
+  - =(param (list struct-name))= instead of =(param :list_of_instances struct-name)=
+  - Example: =(ldef process-point (p point) -> ...)= matches =point= struct instances
+  - Example: =(ldef process-points (pts (list point)) -> ...)= matches lists of =point= instances
+  - Fully backward compatible - old =:instance_of= and =:list_of_instances= syntax still works
+  - =:list_of :keyword= syntax remains unchanged for lists of keyword types
 
 ** Changed
 - Updated =l-mode= syntax highlighting colors:
   - =ldef= function names now use =font-lock-function-name-face= (purple) instead of =font-lock-keyword-face=
   - Arrow (=->=) now uses =font-lock-constant-face= (same color as =@doc=) for better visual consistency
+- Updated =l-generic-cleanup= documentation to reference =l-generic-remove-method= for removing specific implementations
+- Pattern matching now distinguishes between symbol types (structs/classes) and value matches
+  - Symbol types like =point=, =foo-struct= are matched via =cl-typep=
+  - Special values =t= and =nil= remain as value matches
+  - Keywords like =:integer=, =:string= remain as type predicates
 
 * 1.0.0 - 2025-11-27
 

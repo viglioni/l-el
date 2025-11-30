@@ -15,10 +15,12 @@
   - [[#doc-docstring-rest-ldef-exprs][@doc (docstring &rest ldef-exprs)]]
   - [[#l-rest-expr][l (&rest expr)]]
   - [[#l-generic-cleanup-name][l-generic-cleanup (name)]]
+  - [[#l-generic-remove-method-name-pattern-list][l-generic-remove-method (name pattern-list)]]
   - [[#l-mode][l-mode]]
   - [[#l-require-feature-optional-filename-noerror][l-require (feature &optional filename noerror)]]
   - [[#l-syntax-advices][l-syntax-advices]]
   - [[#l-syntax-remove-advices][l-syntax-remove-advices]]
+  - [[#l-version][l-version]]
   - [[#ldef-name-rest-args-and-body][ldef (name &rest args-and-body)]]
   - [[#lpartial-fn-rest-init-args][lpartial (fn &rest init-args)]]
   - [[#with-l-rest-body][with-l (&rest body)]]
@@ -151,6 +153,100 @@ This is useful for:
 
 Note: This operation cannot be undone. All method definitions are permanently removed.
 
+See also: =l-generic-remove-method= for removing specific implementations.
+
+** =l-generic-remove-method (name pattern-list)=
+
+Remove a specific method implementation from generic function NAME.
+
+This function removes only the method that matches PATTERN-LIST from the generic function, leaving other implementations intact. The dispatch function is automatically regenerated after removal.
+
+NAME is the symbol representing the generic function.
+
+PATTERN-LIST is the list of patterns that identifies the specific implementation to remove. The patterns should match the original definition. Parameter names are ignored when matching - only types and values matter.
+
+*** Return Value
+
+Returns =t= if a method was removed, =nil= if no matching method was found.
+
+*** Behavior
+
+After removing the method:
+- The dispatch function is regenerated with remaining methods
+- If no methods remain, the function is completely removed (unbound)
+- Other implementations of the same function continue to work
+
+*** Examples:
+
+**** Removing type-matched implementations:
+#+begin_src emacs-lisp
+;; Define multiple implementations
+(ldef lempty (x :string) -> (string-empty-p x))
+(ldef lempty (x :list) -> (null x))
+(ldef lempty x -> nil)
+
+;; Remove only the string implementation
+(l-generic-remove-method 'lempty '((x :string)))
+
+;; The other implementations still work
+(lempty '())        ;; => t (list implementation)
+(lempty "hello")    ;; => nil (falls back to wildcard)
+
+;; Note: Parameter names don't matter
+(l-generic-remove-method 'lempty '((lst :list)))  ;; Also removes list impl
+#+end_src
+
+**** Removing value-matched implementations:
+#+begin_src emacs-lisp
+;; Define fibonacci with base cases
+(ldef fib 0 -> 0)
+(ldef fib 1 -> 1)
+(ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))
+
+;; Remove specific value match
+(l-generic-remove-method 'fib '(0))  ;; Remove fib(0) = 0
+
+;; Now fib(0) falls back to recursive case
+(fib 1)  ;; => 1 (still works)
+#+end_src
+
+**** Removing implementations with multiple parameters:
+#+begin_src emacs-lisp
+(ldef calc '+ x y -> (+ x y))
+(ldef calc '- x y -> (- x y))
+(ldef calc '* x y -> (* x y))
+
+;; Remove addition
+(l-generic-remove-method 'calc '('+ x y))
+
+;; Other operations still work
+(calc '- 10 5)  ;; => 5
+(calc '* 3 4)   ;; => 12
+#+end_src
+
+**** Removing rest parameter implementations:
+#+begin_src emacs-lisp
+(ldef sum (nums :rest) -> (apply '+ nums))
+(ldef sum x y -> (+ x y))
+
+;; Remove rest parameter version
+(l-generic-remove-method 'sum '((nums :rest)))
+
+;; Only fixed-arity version remains
+(sum 3 4)        ;; => 7
+(sum 1 2 3 4)    ;; => ERROR: no matching pattern
+#+end_src
+
+*** Notes
+
+- Parameter names are ignored when matching patterns - only types and values matter
+- =(x :integer)= matches =(y :integer)= or any other parameter name with =:integer=
+- Regular parameters (wildcards) all match each other: =x= matches =y=, =z=, etc.
+- If the last method is removed, the function is automatically unbound
+- Returns =nil= if no matching pattern is found
+
+See also: =l-generic-cleanup= for removing all methods of a function, =ldef= for defining generic functions.
+
 ** =l-mode=
 
 Enhanced major mode extending =emacs-lisp-mode= with specialized features for l.el.
@@ -211,6 +307,21 @@ This function adds around advice to =eval-last-sexp=, =eval-region=, =eval-buffe
 Remove advice from evaluation functions for l syntax support.
 
 This function removes around advice from =eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and =load= that was added by =l-syntax-advices=.
+
+** =l-version=
+
+Return the current version of l.el.
+
+This function returns the version string of the currently loaded l.el library. The version is automatically updated during release via the =release.el= script when running =make release-patch=, =make release-minor=, or =make release-major=.
+
+*** Examples:
+#+begin_src emacs-lisp
+(l-version)  ;; => "1.0.0"
+#+end_src
+
+*** Notes
+
+The version follows semantic versioning (MAJOR.MINOR.PATCH).
 
 ** =ldef (name &rest args-and-body)=
 
@@ -414,6 +525,7 @@ When no pattern matches the provided arguments, an error is raised:
 - Multiple =:rest= parameters are not allowed.
 - =:rest= must be the last parameter.
 - Use =l-generic-cleanup= to remove a function and all its methods.
+- Use =l-generic-remove-method= to remove a specific implementation while keeping others.
 
 ** =lpartial (fn &rest init-args)=
 
@@ -528,11 +640,39 @@ The library supports the following type predicates for pattern matching:
 
 These types require an additional argument to specify the exact type to match:
 
-- =:instance_of= - cl-typep (matches specific struct or class type)
-- =:list_of= - l--list-of-p (matches list where every element matches a type keyword)
-- =:list_of_instances= - l--list-of-instances-p (matches list where every element is an instance of a specific type)
+- Struct/class types - =(param type-name)= - matches specific struct or class type via =cl-typep= (NEW simplified syntax!)
+- =:instance_of= - =(param :instance_of type-name)= - legacy syntax, still supported
+- =:list_of= - =(param :list_of :type-keyword)= - matches list where every element matches a type keyword
+- List of structs/classes - =(param (list type-name))= - matches list of specific type instances (NEW simplified syntax!)
+- =:list_of_instances= - =(param :list_of_instances type-name)= - legacy syntax, still supported
 
-*** =:instance_of=
+*** Struct and Class Type Matching
+
+**** Recommended syntax (simplified):
+
+Usage: =(param type-name)=
+
+This is the new, cleaner syntax for matching struct and class instances, similar to =cl-defmethod=.
+
+Examples:
+#+begin_src emacs-lisp
+(cl-defstruct point x y)
+(defclass person () ((name :initarg :name)))
+
+;; Match point struct instances
+(ldef process-point (p point) ->
+  (format "Point at %d,%d" (point-x p) (point-y p)))
+
+;; Match person class instances
+(ldef greet-person (p person) ->
+  (format "Hello %s" (oref p name)))
+
+;; Works with built-in cl types too
+(ldef double-int (n integer) -> (* n 2))
+(ldef upcase-str (s string) -> (upcase s))
+#+end_src
+
+**** Legacy syntax (still supported):
 
 Usage: =(param :instance_of type-name)=
 
@@ -569,7 +709,34 @@ Examples:
   (length syms))
 #+end_src
 
-*** =:list_of_instances=
+*** List of Struct/Class Instances
+
+**** Recommended syntax (simplified):
+
+Usage: =(param (list type-name))=
+
+This is the new, cleaner syntax for matching lists of struct or class instances.
+
+Examples:
+#+begin_src emacs-lisp
+(cl-defstruct point x y)
+(defclass shape () ((name :initarg :name)))
+
+;; Match list of point structs
+(ldef process-points (pts (list point)) ->
+  (mapcar (lambda (p) (+ (point-x p) (point-y p))) pts))
+
+;; Match list of shape instances
+(ldef draw-shapes (shapes (list shape)) ->
+  (mapcar (lambda (s) (oref s name)) shapes))
+
+;; Can also combine with list of keyword types
+(ldef process-integers (nums (list :integer)) ->
+  ;; Note: This is equivalent to (nums :list_of :integer)
+  (apply #'+ nums))
+#+end_src
+
+**** Legacy syntax (still supported):
 
 Usage: =(param :list_of_instances type-name)=
 

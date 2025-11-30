@@ -139,6 +139,11 @@ Currying examples:
   (funcall (add3 1) 2 3)  ;; => 6 (partial application)
   (funcall (funcall (add3 1) 2) 3)  ;; => 6 (chained partial)
 
+MANAGING IMPLEMENTATIONS:
+- Use \\='l-generic-cleanup\\=' to remove all methods of a function.
+- Use \\='l-generic-remove-method\\=' to remove a specific implementation
+  while keeping others.
+
 NAME is the function name to define.
 ARGS-AND-BODY contains arguments, ->, and body expressions."
 

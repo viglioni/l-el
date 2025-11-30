@@ -44,29 +44,31 @@
 
 PATTERN can be:
 - A plain symbol: parameter binding → (pattern nil nil)
-- A list (param spec [type-arg]): type/rest matching → (param spec type-arg)
+- A list (param spec [type-arg]): type/rest matching
+  - (param :keyword) → keyword type predicate
+  - (param :keyword arg) → parameterized keyword type
+  - (param symbol) → struct/class type via cl-typep (NEW!)
+  - (param (list type)) → list of type (NEW!)
 - A literal value or quoted form: value matching → (gensym value nil)
-
-Direct value matching is supported:
-  (ldef fib 0 -> 0)           ;; matches when arg equals 0
-  (ldef fib n -> ...)         ;; binds n (any value)
-  (ldef foo (x :integer) -> ...) ;; type matches integer
 
 Examples:
   (l-generic--parse-pattern 'x)
   ;; => (x nil nil)  ; parameter binding
 
   (l-generic--parse-pattern '(x :integer))
-  ;; => (x :integer nil)  ; type match
+  ;; => (x :integer nil)  ; keyword type match
+
+  (l-generic--parse-pattern '(x point))
+  ;; => (x point nil)  ; symbol type match (struct/class)
+
+  (l-generic--parse-pattern '(x (list point)))
+  ;; => (x list point)  ; list of symbol type
+
+  (l-generic--parse-pattern '(x :list_of :integer))
+  ;; => (x :list_of :integer)  ; list of keyword type (legacy)
 
   (l-generic--parse-pattern '(x :instance_of point))
-  ;; => (x :instance_of point)  ; parameterized type
-
-  (l-generic--parse-pattern 0)
-  ;; => (l--generated-param-0 0 nil)  ; value match for 0
-
-  (l-generic--parse-pattern \\='foo)
-  ;; => (l--generated-param-1 \\='foo nil)  ; value match for symbol foo"
+  ;; => (x :instance_of point)  ; parameterized type (legacy)"
   (cond
    ;; Plain symbol → parameter binding
    ((symbolp pattern)
@@ -74,20 +76,18 @@ Examples:
 
    ;; List → type/rest matching: (param spec [type-arg])
    ((and (listp pattern) (not (eq (car pattern) 'quote)))
-    (let ((param (car pattern))
-          (spec (cadr pattern))
-          (type-arg (caddr pattern)))
-      (list param spec type-arg)))
+    (let* ((param (car pattern))
+           (spec (cadr pattern))
+           (type-arg (caddr pattern)))
+      ;; Check if spec is (list type) syntax
+      (if (and (listp spec) (eq (car spec) 'list))
+          ;; (param (list type)) → (param list type)
+          (list param 'list (cadr spec))
+        ;; Regular pattern: (param spec [type-arg])
+        (list param spec type-arg))))
 
    ;; Anything else (literals, quoted forms) → value matching
-   ;; Return as a list (generated-param value nil) so it gets stored
-   ;; in pattern-list correctly for value matching
    (t
-    ;; For pattern-list storage, we need the original pattern wrapped
-    ;; But parse-pattern returns (param spec type-arg), and the caller
-    ;; will use this to build the pattern-list entry.
-    ;; The pattern-list needs to contain the original form for matching.
-    ;; So we need to return metadata that tells the caller this is a value match.
     (let ((generated-param (gensym "l--match-")))
       (list generated-param pattern nil)))))
 
@@ -137,7 +137,17 @@ Examples:
          (mapcar (lambda (pattern)
                    (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
                      (cond ((and (keywordp spec) type-arg)
-                            ;; Parameterized type match: (x :instance_of point)
+                            ;; Parameterized type match: (x :instance_of point) or (x :list_of :integer)
+                            "c")
+                           ((eq spec 'list)
+                            ;; List of type: (x (list point)) or (x (list :integer))
+                            "c")
+                           ((and (symbolp spec)
+                                 (not (null spec))
+                                 (not (keywordp spec))
+                                 (not (eq spec t)))
+                            ;; Symbol type match: (x point) - struct/class via cl-typep
+                            ;; Exclude t and nil (nil already excluded by not-null check)
                             "c")
                            ((keywordp spec)
                             ;; Type match - distinguish primitive from category
@@ -201,6 +211,21 @@ Examples:
            (string-prefix-p "l--match-" (symbol-name param)))
       ;; Value match: (l--match-123 :success) or (l--match-456 42)
       `(equal (nth ,arg-index args) ,spec))
+     ((eq spec 'list)
+      ;; List of type: (param (list type))
+      ;; type-arg can be either a keyword (:integer) or symbol (point)
+      (if (keywordp type-arg)
+          ;; (param (list :integer)) -> (l--list-of-p (nth 0 args) :integer)
+          `(l--list-of-p (nth ,arg-index args) ,type-arg)
+        ;; (param (list point)) -> (l--list-of-instances-p (nth 0 args) 'point)
+        `(l--list-of-instances-p (nth ,arg-index args) ',type-arg)))
+     ((and (symbolp spec)
+           (not (null spec))
+           (not (keywordp spec))
+           (not (eq spec t)))
+      ;; Symbol type match: (param point) -> (cl-typep (nth 0 args) 'point)
+      ;; Exclude t and nil (nil already excluded by not-null check)
+      `(cl-typep (nth ,arg-index args) ',spec))
      ((and (keywordp spec) type-arg)
       ;; Parameterized type match: (arg :instance_of point) -> (cl-typep (nth 0 args) 'point)
       (let ((predicate (cdr (assoc spec l-generic-parameterized-type-predicates))))
@@ -525,6 +550,132 @@ Examples:
                  :function-name name
                  :message ":rest parameter must be the last parameter")))))
 
+(defun l-generic--normalize-pattern (pattern)
+  "Normalize PATTERN for comparison by extracting the actual pattern value.
+
+For generated symbols (value matches), extract the matched value.
+For type matches, return only the type information (ignore param name).
+For regular parameters, return wildcard symbol.
+
+Parameter names don't affect pattern matching - only types and values do.
+
+Examples:
+  (l-generic--normalize-pattern \\='x) => \\='_
+  (l-generic--normalize-pattern \\='(x :integer)) => (:integer)
+  (l-generic--normalize-pattern \\='(x :instance_of point)) => (:instance_of point)
+  (l-generic--normalize-pattern \\='(l--match-123 42)) => 42
+  (l-generic--normalize-pattern \\='(l--match-456 :keyword)) => :keyword"
+  (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
+    (cond
+     ;; Value match with generated symbol - return the value
+     ((and (symbolp param)
+           (string-prefix-p "l--match-" (symbol-name param)))
+      spec)
+     ;; Type match with type-arg - ignore parameter name
+     ((and (keywordp spec) type-arg)
+      (list spec type-arg))
+     ;; Type match without type-arg - ignore parameter name
+     ((keywordp spec)
+      (list spec))
+     ;; Regular parameter - all parameters are equivalent wildcards
+     (t '_))))
+
+(defun l-generic--patterns-equal-p (pattern1 pattern2)
+  "Return t if PATTERN1 and PATTERN2 represent the same pattern.
+
+Compares normalized patterns, handling generated symbols for value matches.
+Parameter names are ignored - only types and values matter.
+
+Examples:
+  (l-generic--patterns-equal-p \\='x \\='y) => t  ; both wildcards
+  (l-generic--patterns-equal-p \\='(x :integer) \\='(y :integer)) => t  ; param names ignored
+  (l-generic--patterns-equal-p \\='(l--match-123 42) 42) => t  ; value match
+  (l-generic--patterns-equal-p \\='(x :integer) \\='(y :string)) => nil  ; different types"
+  (equal (l-generic--normalize-pattern pattern1)
+         (l-generic--normalize-pattern pattern2)))
+
+(defun l-generic--pattern-lists-equal-p (patterns1 patterns2)
+  "Return t if PATTERNS1 and PATTERNS2 represent the same pattern list.
+
+Compares two pattern lists element by element.
+
+Examples:
+  (l-generic--pattern-lists-equal-p \\='(x y) \\='(a b)) => t  ; both are wildcards
+  (l-generic--pattern-lists-equal-p \\='((x :integer) y) \\='((a :integer) b)) => t
+  (l-generic--pattern-lists-equal-p \\='(x y) \\='(x)) => nil  ; different lengths"
+  (and (= (length patterns1) (length patterns2))
+       (cl-every #'l-generic--patterns-equal-p patterns1 patterns2)))
+
+(defun l-generic-remove-method (name pattern-list)
+  "Remove a specific method implementation from generic function NAME.
+
+This function removes only the method that matches PATTERN-LIST from
+the generic function, leaving other implementations intact.
+
+NAME is the symbol representing the generic function.
+PATTERN-LIST is the list of patterns that identifies the specific
+implementation to remove. The patterns should match the original
+definition.
+
+After removing the method:
+- The dispatch function is regenerated with remaining methods
+- If no methods remain, the function is completely removed
+- Other implementations of the same function continue to work
+
+Examples:
+  ;; Define multiple implementations
+  (ldef lempty :string -> t)
+  (ldef lempty :list -> (null x))
+  (ldef lempty x -> nil)
+
+  ;; Remove only the string implementation
+  (l-generic-remove-method \\='lempty \\='((x :string)))
+
+  ;; The other implementations still work
+  (lempty \\='())        ;; => t
+  (lempty \"hello\")    ;; => ERROR: no matching pattern
+
+  ;; Define with value matching
+  (ldef fib 0 -> 0)
+  (ldef fib 1 -> 1)
+  (ldef fib n -> (+ (fib (- n 1)) (fib (- n 2))))
+
+  ;; Remove specific value match
+  (l-generic-remove-method \\='fib \\='(0))  ; Remove fib(0) = 0
+
+Returns t if a method was removed, nil if no matching method was found.
+
+See also: `l-generic-cleanup' for removing all methods of a function."
+  (let* ((current-methods (l--get-from-registry name))
+         (remaining-methods
+          (cl-remove-if
+           (lambda (method)
+             (l-generic--pattern-lists-equal-p
+              (l--pattern-list method)
+              pattern-list))
+           current-methods)))
+
+    (cond
+     ;; No methods found for this function
+     ((null current-methods)
+      (message "Function %s has no registered methods" name)
+      nil)
+     ;; No method was removed (pattern not found)
+     ((= (length remaining-methods) (length current-methods))
+      (message "No method matching pattern %s found for %s" pattern-list name)
+      nil)
+     ;; All methods removed - cleanup completely
+     ((null remaining-methods)
+      (l-generic-cleanup name)
+      (message "Removed last method from %s - function unbound" name)
+      t)
+     ;; Some methods remain - regenerate dispatch
+     (t
+      (l--add-to-registry name remaining-methods)
+      (eval (l-generic--generate-dispatch-function name remaining-methods))
+      (message "Removed method %s from %s" pattern-list name)
+      t))))
+
 (defun l-generic-cleanup (name)
   "Remove generic function NAME and all its methods.
 
@@ -564,7 +715,8 @@ The function must be redefined from scratch if needed again.
 Interactive usage:
    \\[l-generic-cleanup] RET my-func RET
 
-See also: `ldef' for defining generic functions."
+See also: `ldef' for defining generic functions,
+         `l-generic-remove-method' for removing specific implementations."
   (interactive "SGeneric function name: ")
   (remhash name l-generic-method-registry)
   (fmakunbound name))

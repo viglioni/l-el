@@ -6,6 +6,7 @@ This document describes breaking changes between major versions of l.el.
 - [[#from-050-to-100][From 0.5.0 to 1.0.0]]
   - [[#ldef-now-requires-arrow-syntax][ldef now requires arrow syntax]]
   - [[#ldef-value-matching-syntax-changed-to-direct-literals][ldef value matching syntax changed to direct literals]]
+  - [[#simplified-structclass-type-matching-added-post-100][Simplified struct/class type matching (Added post-1.0.0)]]
 
 * From 0.5.0 to 1.0.0
 
@@ -157,3 +158,38 @@ This change makes the syntax more intuitive and concise:
 - Less syntax noise for the common case of matching literal values
 - Consistency with pattern matching in other functional languages
 - Alignment with the =l= lambda macro's arrow syntax
+
+** Simplified struct/class type matching (Added post-1.0.0)
+
+*Note: This is not a breaking change - the old syntax continues to work.*
+
+A new, cleaner syntax for matching struct and class types has been added, similar to =cl-defmethod=:
+
+*** New recommended syntax:
+
+#+begin_src emacs-lisp
+;; Struct/class instances
+(ldef process-point (p point) -> ...)
+
+;; List of struct/class instances
+(ldef process-points (pts (list point)) -> ...)
+#+end_src
+
+*** Old syntax (still supported):
+
+#+begin_src emacs-lisp
+;; Struct/class instances
+(ldef process-point (p :instance_of point) -> ...)
+
+;; List of struct/class instances
+(ldef process-points (pts :list_of_instances point) -> ...)
+#+end_src
+
+*** Why use the new syntax?
+
+- **Cleaner and more concise** - less typing, easier to read
+- **Consistent with =cl-defmethod=** - familiar to Elisp developers
+- **More intuitive** - symbol types are types, keywords are predicates
+- **Better integration** - feels more like native Emacs Lisp
+
+The =:list_of :keyword= syntax remains unchanged for lists of keyword types.

@@ -245,8 +245,8 @@
       (defclass employee ()
         ((id :initarg :id)))
 
-      (ldef shape-processor (s :instance_of point) -> "processing point")
-      (ldef shape-processor (s :instance_of circle) -> "processing circle")
+      (ldef shape-processor (s point) -> "processing point")
+      (ldef shape-processor (s circle) -> "processing circle")
       (ldef shape-processor (s :struct) -> "processing generic struct")
       (ldef shape-processor s -> "not a struct"))
 
@@ -268,8 +268,8 @@
       (expect (shape-processor 42) :to-equal "not a struct"))
 
     (test-it "works with EIEIO classes"
-      (ldef person-processor (p :instance_of person) -> "processing person")
-      (ldef person-processor (e :instance_of employee) -> "processing employee")
+      (ldef person-processor (p person) -> "processing person")
+      (ldef person-processor (e employee) -> "processing employee")
       (ldef person-processor x -> "not a person or employee")
 
       (let ((p (make-instance 'person :name "Alice" :age 30))
@@ -278,7 +278,7 @@
         (expect (person-processor e) :to-equal "processing employee")))
 
     (test-it "specificity: instance_of > generic type > wildcard"
-      (ldef specificity-test (x :instance_of point) -> "specific point")
+      (ldef specificity-test (x point) -> "specific point")
       (ldef specificity-test (x :struct) -> "any struct")
       (ldef specificity-test x -> "anything")
 
@@ -338,11 +338,11 @@
       (defclass shape ()
         ((name :initarg :name)))
 
-      (ldef process-points-2d (pts :list_of_instances point-2d) ->
+      (ldef process-points-2d (pts (list point-2d)) ->
         (mapcar (lambda (p) (+ (point-2d-x p) (point-2d-y p))) pts))
       (ldef process-points-2d pts -> "not a list of point-2d")
 
-      (ldef process-shapes (shapes :list_of_instances shape) ->
+      (ldef process-shapes (shapes (list shape)) ->
         (length shapes))
       (ldef process-shapes x -> -1))
 
@@ -372,7 +372,7 @@
         (expect (process-shapes shapes) :to-equal 2)))
 
     (test-it "specificity: list_of_instances > list > wildcard"
-      (ldef shape-handler (s :list_of_instances shape) -> "list of shapes")
+      (ldef shape-handler (s (list shape)) -> "list of shapes")
       (ldef shape-handler (s :list) -> "any list")
       (ldef shape-handler x -> "anything")
 
@@ -505,7 +505,7 @@
         (expect (l-generic--calculate-specificity '((x :number))) :to-equal "a"))
 
       (test-it "parameterized type gets 'c' score"
-        (expect (l-generic--calculate-specificity '((x :instance_of point))) :to-equal "c")
+        (expect (l-generic--calculate-specificity '((x point))) :to-equal "c")
         (expect (l-generic--calculate-specificity '((x :list_of :integer))) :to-equal "c"))
 
       (test-it "value match gets 'd' score"

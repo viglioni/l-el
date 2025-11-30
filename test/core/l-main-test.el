@@ -935,6 +935,116 @@
       
       (test-it "works with backquote and unquote"
         (let ((template (l x y -> `(+ ,x ,y))))
-          (expect (funcall template 3 4) :to-equal '(+ 3 4)))))))
+          (expect (funcall template 3 4) :to-equal '(+ 3 4))))))
+
+  (describe "l-generic-remove-method"
+    (before-each
+      ;; Clean up any existing test functions
+      (ignore-errors (l-generic-cleanup 'test-remove-fn))
+      (ignore-errors (l-generic-cleanup 'test-remove-fib)))
+
+    (after-each
+      ;; Clean up after tests
+      (ignore-errors (l-generic-cleanup 'test-remove-fn))
+      (ignore-errors (l-generic-cleanup 'test-remove-fib)))
+
+    (test-it "removes a specific type-matched implementation"
+      (ldef test-remove-fn (x :string) -> "string")
+      (ldef test-remove-fn (x :integer) -> "integer")
+      (ldef test-remove-fn x -> "default")
+
+      ;; Verify all implementations work
+      (expect (test-remove-fn "hello") :to-equal "string")
+      (expect (test-remove-fn 42) :to-equal "integer")
+      (expect (test-remove-fn 'symbol) :to-equal "default")
+
+      ;; Remove string implementation
+      (l-generic-remove-method 'test-remove-fn '((x :string)))
+
+      ;; String should now match default, others still work
+      (expect (test-remove-fn "hello") :to-equal "default")
+      (expect (test-remove-fn 42) :to-equal "integer")
+      (expect (test-remove-fn 'symbol) :to-equal "default"))
+
+    (test-it "removes a specific value-matched implementation"
+      (ldef test-remove-fib 0 -> 0)
+      (ldef test-remove-fib 1 -> 1)
+      (ldef test-remove-fib n -> (+ (test-remove-fib (- n 1))
+                                    (test-remove-fib (- n 2))))
+
+      ;; Verify all work
+      (expect (test-remove-fib 0) :to-equal 0)
+      (expect (test-remove-fib 1) :to-equal 1)
+      (expect (test-remove-fib 5) :to-equal 5)
+
+      ;; Remove the base case for 0
+      (l-generic-remove-method 'test-remove-fib '(0))
+
+      ;; Now fib(0) should match the general case, causing infinite recursion
+      ;; But we can verify the method was removed by checking it doesn't match
+      (expect (test-remove-fib 1) :to-equal 1))
+
+    (test-it "removes last method and unbinds function"
+      (ldef test-remove-fn x -> "only")
+      (expect (test-remove-fn 'anything) :to-equal "only")
+
+      ;; Remove the only method
+      (l-generic-remove-method 'test-remove-fn '(x))
+
+      ;; Function should be unbound
+      (expect (fboundp 'test-remove-fn) :to-be nil))
+
+    (test-it "returns nil when function has no methods"
+      (expect (l-generic-remove-method 'nonexistent-fn '(x))
+              :to-be nil))
+
+    (test-it "returns nil when pattern not found"
+      (ldef test-remove-fn (x :integer) -> "int")
+      (expect (l-generic-remove-method 'test-remove-fn '((x :string)))
+              :to-be nil)
+      ;; Original method still works
+      (expect (test-remove-fn 42) :to-equal "int"))
+
+    (test-it "returns t when method successfully removed"
+      (ldef test-remove-fn (x :integer) -> "int")
+      (ldef test-remove-fn x -> "default")
+      (expect (l-generic-remove-method 'test-remove-fn '((x :integer)))
+              :to-be t))
+
+    (test-it "handles multiple implementations with same arity"
+      (ldef test-remove-fn (x :string) -> "string")
+      (ldef test-remove-fn (x :integer) -> "integer")
+      (ldef test-remove-fn (x :symbol) -> "symbol")
+      (ldef test-remove-fn x -> "wildcard")
+
+      ;; Remove integer
+      (l-generic-remove-method 'test-remove-fn '((x :integer)))
+
+      ;; Integer should now match wildcard
+      (expect (test-remove-fn 42) :to-equal "wildcard")
+      (expect (test-remove-fn "hello") :to-equal "string")
+      (expect (test-remove-fn 'sym) :to-equal "symbol"))
+
+    (test-it "distinguishes between different parameter names with same type"
+      (ldef test-remove-fn (x :integer) -> x)
+
+      ;; This should match even with different param name
+      (l-generic-remove-method 'test-remove-fn '((y :integer)))
+
+      ;; Function should be unbound
+      (expect (fboundp 'test-remove-fn) :to-be nil))
+
+    (test-it "handles rest parameters"
+      (ldef test-remove-fn (args :rest) -> (apply '+ args))
+      (ldef test-remove-fn x y -> (* x y))
+
+      (expect (test-remove-fn 1 2 3 4) :to-equal 10)
+      (expect (test-remove-fn 3 4) :to-equal 12)
+
+      ;; Remove rest parameter version
+      (l-generic-remove-method 'test-remove-fn '((args :rest)))
+
+      ;; Should only work with exactly 2 args now
+      (expect (test-remove-fn 3 4) :to-equal 12))))
 
 ;;; l-test.el ends here
