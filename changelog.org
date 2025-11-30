@@ -21,6 +21,15 @@ All notable changes to this project will be documented in this file.
   - =(param :list_of :integer)= - list of integers (keyword type)
   - =(param :list_of point)= - list of =point= instances (struct type)
   - Note: =(param :list_of point)= is equivalent to =(param (list point))=
+- Typed =:rest= parameters for type-checked variadic arguments:
+  - =(param :rest :keyword)= - rest parameter that only accepts arguments matching a keyword type
+  - =(param :rest struct-name)= - rest parameter that only accepts instances of a struct/class type
+  - Examples:
+    - =(ldef sum (nums :rest :integer) -> (apply '+ nums))= - only accepts integers
+    - =(ldef process-points (pts :rest point) -> ...)= - only accepts =point= struct instances
+  - Typed rest has higher specificity than untyped rest, enabling fallback patterns
+  - Untyped =(param :rest)= continues to work as before, accepting any arguments
+  - Type checking uses same predicates as =:list_of= for consistency
 
 ** Changed
 - Updated =l-mode= syntax highlighting colors:

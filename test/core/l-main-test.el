@@ -379,6 +379,46 @@
       (test-it ":rest operator can only exist in the final argument"
         (expect (ldef rest-fail (c :number) (a :rest) (b :number) -> nil) :to-throw)))
 
+    (describe "typed :rest operator"
+      (before-all
+        ;; Rest with keyword type
+        (ldef sum-rest (nums :rest :integer) -> (apply '+ nums))
+        (ldef sum-rest (x :rest) -> "not integers")
+
+        ;; Rest with struct type
+        (cl-defstruct rest-point x y)
+        (ldef process-rest-points (pts :rest rest-point) ->
+          (mapcar (lambda (p) (+ (rest-point-x p) (rest-point-y p))) pts))
+        (ldef process-rest-points (x :rest) -> "not points"))
+
+      (test-it "typed rest with keyword type matches list of that type"
+        (expect (sum-rest 1 2 3 4 5) :to-equal 15)
+        (expect (sum-rest 10 20) :to-equal 30))
+
+      (test-it "typed rest with keyword type rejects wrong types"
+        (expect (sum-rest "hello") :to-equal "not integers")
+        (expect (sum-rest 1 "two" 3) :to-equal "not integers"))
+
+      (test-it "typed rest with struct type matches list of structs"
+        (let ((p1 (make-rest-point :x 1 :y 2))
+              (p2 (make-rest-point :x 3 :y 4)))
+          (expect (process-rest-points p1 p2) :to-equal '(3 7))))
+
+      (test-it "typed rest with struct type rejects wrong types"
+        (expect (process-rest-points "not a point") :to-equal "not points")
+        (let ((p1 (make-rest-point :x 1 :y 2)))
+          (expect (process-rest-points p1 "not a point") :to-equal "not points")))
+
+      (test-it "typed rest works with currying"
+        (expect (funcall (sum-rest) 1 2 3) :to-equal 6))
+
+      (test-it "typed rest specificity: typed rest > untyped rest"
+        (ldef rest-processor (args :rest :integer) -> "typed rest")
+        (ldef rest-processor (args :rest) -> "untyped rest")
+
+        (expect (rest-processor 1 2 3) :to-equal "typed rest")
+        (expect (rest-processor "a" "b") :to-equal "untyped rest")))
+
     (describe "pattern matching with complex data structures"
       (describe "alists"
         (before-all

@@ -138,6 +138,7 @@ Examples:
                    (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
                      (cond ((and (keywordp spec) type-arg)
                             ;; Parameterized type match: (x :instance_of point) or (x :list_of :integer)
+                            ;; Also handles typed rest: (x :rest :integer) or (x :rest point)
                             "c")
                            ((eq spec 'list)
                             ;; List of type: (x (list point)) or (x (list :integer))
@@ -149,6 +150,9 @@ Examples:
                             ;; Symbol type match: (x point) - struct/class via cl-typep
                             ;; Exclude t and nil (nil already excluded by not-null check)
                             "c")
+                           ((and (eq spec :rest) (not type-arg))
+                            ;; Untyped rest parameter: (x :rest) - lowest specificity
+                            "0")
                            ((keywordp spec)
                             ;; Type match - distinguish primitive from category
                             (cond ((memq spec l-generic-primitive-types)
@@ -201,8 +205,16 @@ Examples:
   ;; => t (wildcard always matches)"
   (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
     (cond
+     ((and (eq spec :rest) type-arg)
+      ;; Typed rest parameter: (param :rest :integer) or (param :rest point)
+      ;; Check that all remaining arguments match the type
+      (if (keywordp type-arg)
+          ;; Keyword type: (param :rest :integer)
+          `(l--list-of-p (nthcdr ,arg-index args) ,type-arg)
+        ;; Symbol type: (param :rest point)
+        `(l--list-of-instances-p (nthcdr ,arg-index args) ',type-arg)))
      ((eq spec :rest)
-      ;; Rest parameters always match (handled specially)
+      ;; Untyped rest parameter: (param :rest) - always matches
       t)
      ;; Check for value match FIRST (before type checking)
      ;; Value match: pattern is a list and param name is generated (starts with l--match-)
