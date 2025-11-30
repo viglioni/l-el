@@ -36,17 +36,17 @@
 
     (message "Preparing release: %s -> %s" current-version new-version)
     
-    ;; Update "since NEXT" and "since: 1.0.0" to new version in all .el files
+    ;; Update "since NEXT" and "since: 1.1.0" to new version in all .el files
     (dolist (file (directory-files-recursively default-directory "\\.el$"))
       (with-temp-buffer
         (insert-file-contents file)
         (let ((modified nil))
           (goto-char (point-min))
-          (while (search-forward ";; since 1.0.0" nil t)
+          (while (search-forward ";; since 1.1.0" nil t)
             (replace-match (format ";; since %s" new-version))
             (setq modified t))
           (goto-char (point-min))
-          (while (search-forward "since: 1.0.0" nil t)
+          (while (search-forward "since: 1.1.0" nil t)
             (replace-match (format "since: %s" new-version))
             (setq modified t))
           (when modified
@@ -61,7 +61,7 @@
         (let ((modified nil))
           (goto-char (point-min))
           ;; Replace "Version: NEXT" with new version
-          (when (re-search-forward ";; Version: 1.0.0" nil t)
+          (when (re-search-forward ";; Version: 1.1.0" nil t)
             (replace-match (format ";; Version: %s" new-version))
             (setq modified t))
           ;; Also update numeric versions in main files

@@ -4,7 +4,7 @@
 ;; Copyright (C) 2025 Laura Viglioni
 
 ;; Author: Laura Viglioni
-;; Version: 1.0.0
+;; Version: 1.1.0
 ;; Package-Requires: ((emacs "29"))
 ;; Keywords: lisp, functional, programming, utilities
 ;; URL: https://github.com/viglioni/l-el
@@ -183,7 +183,7 @@
 
 (defun l-version ()
   "Return the current version of l.el."
-  "1.0.0")
+  "1.1.0")
 
 (provide 'l)
 ;;; l.el ends here

@@ -107,7 +107,7 @@ Each function argument is automatically wrapped with `__', so you can use the
 `__' placeholder syntax directly: (lpipe 5 (* __ 2) (+ __ 1)) instead of
 \(lpipe 5 (__ (* __ 2)) (__ (+ __ 1))).
 
-since: 1.0.0
+since: 1.1.0
 
 Arguments:
 - arg: The initial value to pipe through the functions

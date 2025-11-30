@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+* 1.1.0 - 2025-11-30
+
 ** Added
 - =l-version= function to return the current version of l.el
 - Release script now automatically updates =l-version= function during version bumps
