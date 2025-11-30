@@ -17,7 +17,10 @@ All notable changes to this project will be documented in this file.
   - Example: =(ldef process-point (p point) -> ...)= matches =point= struct instances
   - Example: =(ldef process-points (pts (list point)) -> ...)= matches lists of =point= instances
   - Fully backward compatible - old =:instance_of= and =:list_of_instances= syntax still works
-  - =:list_of :keyword= syntax remains unchanged for lists of keyword types
+- Enhanced =:list_of= to work with both keyword types and struct/class types:
+  - =(param :list_of :integer)= - list of integers (keyword type)
+  - =(param :list_of point)= - list of =point= instances (struct type)
+  - Note: =(param :list_of point)= is equivalent to =(param (list point))=
 
 ** Changed
 - Updated =l-mode= syntax highlighting colors:

@@ -55,21 +55,30 @@ This matches both cl-defstruct instances and EIEIO class instances."
   (or (cl-struct-p obj)
       (eieio-object-p obj)))
 
-(defun l--list-of-p (obj type-keyword)
-  "Return t if OBJ is a list where every element matches TYPE-KEYWORD.
+(defun l--list-of-p (obj type-or-keyword)
+  "Return t if OBJ is a list where every element matches TYPE-OR-KEYWORD.
 
-TYPE-KEYWORD should be a keyword from `l-generic-type-predicates'.
+TYPE-OR-KEYWORD can be:
+- A keyword from `l-generic-type-predicates' (e.g., :integer, :string)
+- A symbol representing a struct or class type (e.g., point, person)
 
 Examples:
   (l--list-of-p '(1 2 3) :integer)     ; => t
   (l--list-of-p '(1 2 \"3\") :integer) ; => nil
   (l--list-of-p '(\"a\" \"b\") :string) ; => t
-  (l--list-of-p '() :integer)          ; => t (empty list matches any type)"
+  (l--list-of-p '() :integer)          ; => t (empty list matches any type)
+
+  (cl-defstruct point x y)
+  (l--list-of-p (list (make-point :x 1 :y 2)) 'point) ; => t"
   (and (listp obj)
-       (let ((predicate (cdr (assoc type-keyword l-generic-type-predicates))))
-         (if predicate
-             (cl-every predicate obj)
-           (l--raise-unknown-type-predicate type-keyword "list_of validation")))))
+       (if (keywordp type-or-keyword)
+           ;; Keyword type - use our predicates
+           (let ((predicate (cdr (assoc type-or-keyword l-generic-type-predicates))))
+             (if predicate
+                 (cl-every predicate obj)
+               (l--raise-unknown-type-predicate type-or-keyword "list_of validation")))
+         ;; Symbol type - use cl-typep for struct/class matching
+         (cl-every (lambda (elem) (cl-typep elem type-or-keyword)) obj))))
 
 (defun l--list-of-instances-p (obj type-name)
   "Return t if OBJ is a list where every element is an instance of TYPE-NAME.

@@ -692,10 +692,15 @@ Examples:
 
 *** =:list_of=
 
-Usage: =(param :list_of :type-keyword)=
+Usage: =(param :list_of type)=
+
+Where =type= can be:
+- A keyword type (=:integer=, =:string=, etc.)
+- A struct/class type (=point=, =person=, etc.)
 
 Examples:
 #+begin_src emacs-lisp
+;; With keyword types
 (ldef sum-integers (nums :list_of :integer) ->
   ;; Only matches lists where every element is an integer
   (apply #'+ nums))
@@ -704,10 +709,15 @@ Examples:
   ;; Only matches lists where every element is a string
   (mapconcat #'identity strs ", "))
 
-(ldef process-symbols (syms :list_of :symbol) ->
-  ;; Works with any type keyword from l-generic-type-predicates
-  (length syms))
+;; With struct/class types
+(cl-defstruct point x y)
+
+(ldef process-points (pts :list_of point) ->
+  ;; Only matches lists where every element is a point struct
+  (mapcar (lambda (p) (+ (point-x p) (point-y p))) pts))
 #+end_src
+
+Note: =(param :list_of point)= is equivalent to =(param (list point))= - both syntaxes work!
 
 *** List of Struct/Class Instances
 

@@ -331,6 +331,29 @@
       (expect (list-processor '(1 "2" 3)) :to-equal "any list")
       (expect (list-processor "string") :to-equal "anything")))
 
+  (describe "list_of with struct types"
+    (before-all
+      (cl-defstruct list-of-point x y)
+
+      (ldef process-list-of-points (pts :list_of list-of-point) ->
+        (mapcar (lambda (p) (+ (list-of-point-x p) (list-of-point-y p))) pts))
+      (ldef process-list-of-points pts -> "not a list of points"))
+
+    (test-it "matches list of struct instances with :list_of syntax"
+      (let ((pts (list (make-list-of-point :x 1 :y 2)
+                       (make-list-of-point :x 3 :y 4))))
+        (expect (process-list-of-points pts) :to-equal '(3 7))))
+
+    (test-it "matches empty list"
+      (expect (process-list-of-points '()) :to-equal '()))
+
+    (test-it "does not match list with wrong types"
+      (expect (process-list-of-points '(1 2 3)) :to-equal "not a list of points"))
+
+    (test-it "does not match non-list"
+      (expect (process-list-of-points "string") :to-equal "not a list of points")
+      (expect (process-list-of-points 42) :to-equal "not a list of points")))
+
   (describe "list_of_instances type matcher (parameterized)"
     (before-all
       (cl-defstruct point-2d x y)
