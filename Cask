@@ -8,4 +8,8 @@
 
 (development
  (depends-on "buttercup")
- (depends-on "org-make-toc"))
+ ;; org-make-toc now requires Emacs >= 28.2, which breaks `cask install` on
+ ;; the 26.3/27.2 CI matrix entries. It is only used as a `before-save-hook'
+ ;; in readme.org, so it's safe to omit from CI. Uncomment locally if needed.
+ ;; (depends-on "org-make-toc")
+ )
