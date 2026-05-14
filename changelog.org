@@ -5,35 +5,27 @@ All notable changes to this project will be documented in this file.
 * Unreleased
 
 ** Added
-- =l-type-hierarchy= defvar mapping each type to its parents (e.g.
-  =:vector= → =:sequence :array=, =:natural= → =:integer :number=)
-- =l-subtype-p= function with transitive lookup through =l-type-hierarchy=
-- =:natural= type for positive integers, backed by =l--naturalp=
-- File-level =;; since:= and =;; updated-at:= metadata convention in =.el=
-  headers; populated across the codebase
+- =:natural= type for positive integers; rejects 0, negatives, and floats.
 
 ** Changed
-- =ldef= pattern-match specificity now derived from =l-type-hierarchy=
-  instead of hardcoded primitive/category lists
-- =:integer= reclassified from primitive to category (it is now a parent
-  of =:natural=)
-- Test bootstrap: =l-test-helpers= no longer pulls in all of =l.el=; each
-  test file requires only what it needs
+- Refactor: =ldef= primitive-vs-category specificity now derived from a
+  new internal =l-type-hierarchy= data structure (replacing hardcoded
+  =l-generic-primitive-types= / =l-generic-category-types= lists).
+  Behaviour unchanged; =:integer= moved to category (parent of =:natural=).
+
+** Removed
+- =l-generic-primitive-types= and =l-generic-category-types= defvars
+  (replaced by =l-type-hierarchy=).
 
 ** Fixed
-- =l-mode= font-lock no longer freezes Emacs on certain source files
-  (=(ldef ... ->)= regex dropped the fragile =\s-= alternation)
-- Removed stale =l-generic-primitive-types= / =l-generic-category-types=
-  defvars
+- =l-mode= font-lock no longer freezes Emacs on certain source files.
 
-** Internal / Tooling
-- =scripts/release.el= rewritten: clean-tree precondition, explicit
-  =git add= file list, exit-code checks on all git calls, =since: NEXT=
-  placeholder resolution (without clobbering frozen =since: X.Y.Z=
-  annotations), case-correct changelog lookup
-- New =test/scripts/release-test.el= covering release-script helpers
-- Regression test in =test/l-mode/l-mode-test.el= for the font-lock freeze
-- CI: macOS Intel matrix bumped =macos-13= → =macos-15-intel=
+** Internal
+- File-level =;; since:= and =;; updated-at:= header convention added to
+  all in-scope =.el= files.
+- =scripts/release.el= rewritten with safety improvements (clean-tree
+  precondition, explicit file list for =git add=, exit-code checks).
+- CI: macOS Intel matrix =macos-13= → =macos-15-intel=.
 
 * 1.1.0 - 2025-11-30
 

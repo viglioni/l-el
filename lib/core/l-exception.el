@@ -6,8 +6,7 @@
 ;; Keywords: lisp, exceptions, errors
 ;; URL: https://github.com/viglioni/l-el
 ;; since: 0.5.0
-;; updated-at: ()
-
+;; updated-at: (1.0.0)
 ;; This file is not part of GNU Emacs.
 
 ;; This program is free software: you can redistribute it and/or modify
