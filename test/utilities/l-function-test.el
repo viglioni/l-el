@@ -1,6 +1,8 @@
 ;;; -*- lexical-binding: t; -*-
 
 (require 'l-test-helpers)
+(require 'l-syntax)
+(l-require 'l-function)
 
 (context "l-function.el"
   (describe "lcomp with single function"
@@ -194,6 +196,32 @@
             (upcase-name (lambda (name) (upcase name))))
         (expect (lpipe '((name . "john") (age . 30)) extract-name upcase-name)
                 :to-equal "JOHN"))))
+
+  (describe "lcomp edge cases"
+    (test-it "with no functions returns the identity function"
+      (expect (funcall (lcomp) 42) :to-equal 42))
+
+    (test-it "identity preserves non-numeric values"
+      (expect (funcall (lcomp) "hello") :to-equal "hello")
+      (expect (funcall (lcomp) '(1 2 3)) :to-equal '(1 2 3))
+      (expect (funcall (lcomp) nil) :to-equal nil)))
+
+  (describe "lcomp/lpipe with curried ldef functions"
+    (before-all
+      (ldef l-function-test-add (x :number) (y :number) -> (+ x y))
+      (ldef l-function-test-mul (x :number) (y :number) -> (* x y)))
+
+    (test-it "lcomp composes partially-applied ldef functions"
+      (expect (funcall (lcomp (l-function-test-add 10) (l-function-test-mul 2)) 5)
+              :to-equal 20)) ; (* 5 2) -> 10, (+ 10 10) -> 20
+
+    (test-it "lpipe pipes through partially-applied ldef functions"
+      (expect (lpipe 5 (l-function-test-mul 2) (l-function-test-add 10))
+              :to-equal 20))
+
+    (test-it "lpipe and lcomp agree on a curried ldef pipeline"
+      (expect (lpipe 3 (l-function-test-mul 4) (l-function-test-add 1))
+              :to-equal (funcall (lcomp (l-function-test-add 1) (l-function-test-mul 4)) 3))))
 
   (describe "lcomp error cases"
     (test-it "raises error when passing non-function to composed result"

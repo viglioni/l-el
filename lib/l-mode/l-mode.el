@@ -7,6 +7,8 @@
 ;; Package-Requires: ((emacs "29"))
 ;; Keywords: lisp, functional, programming, utilities, mode
 ;; URL: https://github.com/viglioni/l-el
+;; since: 0.3.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 
@@ -120,7 +122,7 @@ since: 1.1.0"
 
     ;; ldef arrow highlighting
     ;; Matches: -> in ldef definitions (handles nested parens)
-    ("(ldef\\(?:\\s-\\|.\\|\n\\)*?\\(->\\)"
+    ("(ldef\\(?:.\\|\n\\)*?\\(->\\)"
      (1 font-lock-constant-face))
 
     ;; ldef function calls highlighting

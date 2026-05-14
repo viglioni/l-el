@@ -1,6 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
 (require 'l-test-helpers)
+(require 'l-main)
 
 (context "ldef type matching"
   (describe "basic type matching"

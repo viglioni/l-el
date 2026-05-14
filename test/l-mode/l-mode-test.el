@@ -12,6 +12,8 @@
 ;;; code:
 
 (require 'l-test-helpers)
+(require 'l-main)
+(require 'l-mode)
 
 (describe "l-mode.el"
   (describe "mode definition"
@@ -265,6 +267,32 @@
                (search-forward "->")
                (let ((face (get-text-property (match-beginning 0) 'face)))
                  (expect face :to-equal 'font-lock-constant-face)))))
+
+  (describe "ldef arrow regex (regression: 2026-05 font-lock freeze)"
+    ;; Background: opening real l-el source files in l-mode could freeze
+    ;; Emacs because the ldef-arrow font-lock regex combined `\\s-' with
+    ;; `.' and `\\n' inside a non-greedy alternation. Under certain
+    ;; syntax-table states reachable from a populated user init, the
+    ;; Emacs regex engine raised "Error in syntax_table logic for
+    ;; to-the-end intervals" from inside `font-lock-ensure', which then
+    ;; popped the debugger and locked the GUI. In `-Q --batch' the
+    ;; failure mode is different (catastrophic backtracking on the full
+    ;; ~13KB buffer that hangs the process indefinitely) so we cannot
+    ;; reproduce the freeze cleanly here. Instead we lock down the
+    ;; structural property whose removal fixes both symptoms: the
+    ;; ldef-arrow regex must not use `\\s-' inside the non-greedy `.\\|\\n'
+    ;; alternation.
+
+    (test-it "ldef-arrow keyword does not use the fragile \\s-/./\\n alternation"
+             (let ((arrow-entry (cl-find-if
+                                 (lambda (entry)
+                                   (and (stringp (car-safe entry))
+                                        (string-prefix-p "(ldef" (car entry))
+                                        (string-match-p "->" (car entry))))
+                                 l-mode-additional-keywords)))
+               (expect arrow-entry :to-be-truthy)
+               (expect (string-match-p "\\\\s-\\\\|" (car arrow-entry))
+                       :to-equal nil))))
 
   (describe "ldef function call highlighting"
     (before-each

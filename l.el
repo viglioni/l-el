@@ -1,4 +1,3 @@
-;;; package --- Summary ;;; -*- lexical-binding: t; -*-
 ;;; l.el --- Modern functional programming utilities for Emacs Lisp -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 Laura Viglioni
@@ -8,6 +7,8 @@
 ;; Package-Requires: ((emacs "29"))
 ;; Keywords: lisp, functional, programming, utilities
 ;; URL: https://github.com/viglioni/l-el
+;; since: 0.1.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 
@@ -180,6 +181,7 @@
 
 ;; utilities
 (l-require 'l-function)
+(l-require 'typeclasses)
 
 (defun l-version ()
   "Return the current version of l.el."

@@ -5,6 +5,8 @@
 ;; Author: Laura Viglioni
 ;; Keywords: lisp, functional, programming, syntax, transformation
 ;; URL: https://github.com/viglioni/l-el
+;; since: 0.2.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 

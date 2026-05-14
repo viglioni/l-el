@@ -14,6 +14,7 @@
 ;;; code:
 
 (require 'l-test-helpers)
+(require 'l-main)
 
 (context "l.el"
   (describe "lpartial"

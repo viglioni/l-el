@@ -5,6 +5,8 @@
 ;; Author: Laura Viglioni
 ;; Keywords: lisp, exceptions, errors
 ;; URL: https://github.com/viglioni/l-el
+;; since: 0.5.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 

@@ -38,7 +38,7 @@
 ;;; code:
 
 (require 'l-test-helpers)
-
+(require 'l-generic-state)
 
 (context "l-generic-state.el"
   (describe "l-generic-method-registry"

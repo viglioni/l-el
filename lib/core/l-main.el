@@ -1,7 +1,12 @@
-;;; package --- Summary ;;; -*- lexical-binding: t; -*-
-;;; l-main.el --- Modern  programming utilities for Emacs Lisp
+;;; l-main.el --- Modern functional programming utilities for Emacs Lisp -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 Laura Viglioni
+
+;; Author: Laura Viglioni
+;; Keywords: lisp, functional, programming, utilities
+;; URL: https://github.com/viglioni/l-el
+;; since: 0.2.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 

@@ -12,6 +12,8 @@
 ;;; code:
 
 (require 'l-test-helpers)
+(require 'l-main)
+(require 'l-syntax)
 
 (describe "l-syntax.el"
   (before-all

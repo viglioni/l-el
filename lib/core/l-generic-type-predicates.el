@@ -5,6 +5,8 @@
 ;; Author: Laura Viglioni
 ;; Keywords: lisp, functional, programming, generics, pattern-matching
 ;; URL: https://github.com/viglioni/l-el
+;; since: 0.2.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 
@@ -29,6 +31,11 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'l-exception)
+
+(defun l--naturalp (obj)
+  "Return if obj is a natural number {1, 2, 3, ...}."
+  (and (integerp obj)
+       (> obj 0)))
 
 (defun l--alistp (obj)
   "Return t if OBJ is an alist (association list).
@@ -93,6 +100,84 @@ Examples:
   (and (listp obj)
        (cl-every (lambda (elem) (cl-typep elem type-name)) obj)))
 
+;;;;;;;;;;;;;;;;;;;;;;
+;; Type Hierarchy   ;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+(defvar l-type-hierarchy
+  '(;; Sequence types
+    (:list        . (:sequence))
+    (:vector      . (:sequence :array))
+    (:string      . (:sequence :array))
+    ;; Number types
+    (:integer     . (:number))
+    (:float       . (:number))
+    (:natural     . (:integer :number))
+    ;; Array types (not :sequence)
+    (:bool-vector . (:array))
+    (:char-table  . (:array))
+    ;; Struct and object types
+    (:struct      . (:instance))
+    (:object      . (:instance))
+    ;; Cons types
+    (:alist       . (:list :sequence))
+    (:plist       . (:list :sequence))
+    (:cons        . (:list :sequence))
+    ;; Aliases point to their canonical types
+    (:seq         . (:sequence))
+    (:str         . (:string :sequence :array))
+    (:int         . (:integer :number))
+    (:nil         . (:list :sequence))
+    (:fn          . (:function :callable))
+    (:buff        . (:buffer))
+    (:bvector     . (:bool-vector :array))
+    (:ctable      . (:char-table :array)))
+  "Explicit type hierarchy mapping children to their parent types.
+
+Each entry is (CHILD . (PARENT1 PARENT2 ...)) where CHILD is a specific
+type and PARENT1, PARENT2, etc. are more general types that include CHILD.
+
+This hierarchy is used to determine subtype relationships for pattern
+matching and typeclass instances. For example, since :list has :sequence
+as a parent, any function that accepts :sequence will also accept :list.
+
+The hierarchy follows these principles:
+- Primitive types (e.g., :list, :integer) are children of category types
+- Category types (e.g., :sequence, :number) group related primitive types
+- Some types have multiple parents (e.g., :vector is both :sequence and :array)
+- Aliases resolve to their canonical types with their full parent chain
+
+Examples:
+  :list → :sequence (lists are sequences)
+  :vector → :sequence, :array (vectors are both sequences and arrays)
+  :integer → :number (integers are numbers)
+  :natural → :integer, :number (natural numbers are integers and numbers)
+  :str → :string, :sequence, :array (alias with full parent chain)")
+
+(defun l-subtype-p (child parent)
+  "Check if CHILD type is a subtype of PARENT type.
+
+Returns t if:
+- CHILD is identical to PARENT
+- CHILD has PARENT in its direct parent list
+- CHILD has an ancestor that is a subtype of PARENT (transitive)
+
+Both CHILD and PARENT should be type keywords (e.g., :list, :sequence).
+
+Examples:
+  (l-subtype-p :list :sequence)    ; => t (direct parent)
+  (l-subtype-p :natural :number)   ; => t (transitive: :natural → :integer → :number)
+  (l-subtype-p :list :list)        ; => t (identical)
+  (l-subtype-p :list :integer)     ; => nil (unrelated types)
+  (l-subtype-p :vector :sequence)  ; => t (vector is a sequence)
+  (l-subtype-p :vector :array)     ; => t (vector is also an array)"
+  (or (eq child parent)
+      (let ((parents (cdr (assq child l-type-hierarchy))))
+        (and parents
+             (or (memq parent parents)
+                 ;; Transitive check - check if any parent is a subtype of target
+                 (cl-some (lambda (p) (l-subtype-p p parent)) parents))))))
+
 (defun l-instanceof (element type)
   "Check if ELEMENT is an instance of TYPE.
 
@@ -118,24 +203,6 @@ Returns t if ELEMENT matches TYPE, nil otherwise."
           (error "Unknown type keyword: %s" type)))
     ;; Type is not a keyword - use cl-typep for struct/class types
     (cl-typep element type)))
-
-(defvar l-generic-primitive-types
-  '(:alist :bool-vector :buffer :char-table :cons :float :function
-    :hash-table :integer :list :null :object :plist :record :string
-    :struct :symbol :vector
-    ;; Aliases
-    :buff :bvector :ctable :fn :int :nil :str)
-  "Primitive/specific types that should match before category types.
-These types are concrete and should have higher specificity than
-category types like :sequence, :array, :number, etc.")
-
-(defvar l-generic-category-types
-  '(:array :callable :instance :number :sequence
-    ;; Aliases
-    :seq)
-  "Category/composite types that match multiple primitive types.
-These have lower specificity than primitive types and should only
-match when no primitive type matches.")
 
 (defvar l-generic-parameterized-type-predicates
   '((:instance_of        . cl-typep)
@@ -175,7 +242,7 @@ instance of a category) but less specific than value matches.")
     (:float       . floatp)
     (:function    . functionp)
     (:hash-table  . hash-table-p)
-    (:integer     . integerp)
+    (:natural     . l--naturalp)
     (:list        . listp)
     (:null        . null)
     (:object      . eieio-object-p)
@@ -189,6 +256,7 @@ instance of a category) but less specific than value matches.")
     (:array       . arrayp)
     (:callable    . (lambda (x) (or (functionp x) (subrp x))))
     (:instance    . l--instancep)
+    (:integer     . integerp)
     (:number      . numberp)
     (:sequence    . sequencep)
     ;; Aliases (short forms)

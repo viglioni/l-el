@@ -1,10 +1,12 @@
-;;; package --- Summary ;;; -*- lexical-binding: t; l-syntax: t; -*-
+;;; l-function.el --- Functional utilities sublibrary of l.el -*- lexical-binding: t; l-syntax: t; -*-
 
 ;; Copyright (C) 2025 Laura Viglioni
 
 ;; Author: Laura Viglioni
 ;; Keywords: lisp, functional, programming, utilities
 ;; URL: https://github.com/viglioni/l-el
+;; since: 0.5.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 

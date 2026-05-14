@@ -5,6 +5,8 @@
 ;; Author: Laura Viglioni
 ;; Keywords: lisp, functional, programming, generics, pattern-matching
 ;; URL: https://github.com/viglioni/l-el
+;; since: 0.1.0
+;; updated-at: ()
 
 ;; This file is not part of GNU Emacs.
 
@@ -38,6 +40,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; l-generic dispatcher ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun l-generic--is-primitive-type-p (type-keyword)
+  "Return t if TYPE-KEYWORD is a primitive/child type in the type hierarchy.
+
+A primitive type is one that has parent types defined in \`l-type-hierarchy'.
+Category/parent types are those that don't appear as keys in the hierarchy.
+
+Examples:
+  (l-generic--is-primitive-type-p :list)      ; => t (child of :sequence)
+  (l-generic--is-primitive-type-p :integer)   ; => t (child of :number)
+  (l-generic--is-primitive-type-p :sequence)  ; => nil (parent type)
+  (l-generic--is-primitive-type-p :number)    ; => nil (parent type)"
+  (and (assq type-keyword l-type-hierarchy) t))
 
 (defun l-generic--parse-pattern (pattern)
   "Parse PATTERN and return (param-name type-keyword type-arg).
@@ -154,16 +169,12 @@ Examples:
                             ;; Untyped rest parameter: (x :rest) - lowest specificity
                             "0")
                            ((keywordp spec)
-                            ;; Type match - distinguish primitive from category
-                            (cond ((memq spec l-generic-primitive-types)
-                                   ;; Primitive type: :list, :integer, :string, etc.
-                                   "b")
-                                  ((memq spec l-generic-category-types)
-                                   ;; Category type: :sequence, :array, :number, etc.
-                                   "a")
-                                  (t
-                                   ;; Unknown type - treat as category (lower priority)
-                                   "a")))
+                            ;; Type match - use type hierarchy to distinguish primitive from category
+                            (if (l-generic--is-primitive-type-p spec)
+                                ;; Primitive/child type in hierarchy
+                                "b"
+                              ;; Category/parent type or unknown
+                              "a"))
                            ((not (symbolp pattern))
                             ;; Value match: (x 42) or (x nil)
                             "d")
