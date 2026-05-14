@@ -1,12 +1,13 @@
 ;;; l-syntax.el --- Syntax transformation and evaluation advice for l.el -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2025 Laura Viglioni
+;; Copyright (C) 2025-2026 Laura Viglioni
 
 ;; Author: Laura Viglioni
 ;; Keywords: lisp, functional, programming, syntax, transformation
 ;; URL: https://github.com/viglioni/l-el
 ;; since: 0.2.0
 ;; updated-at: (0.3.0)
+
 ;; This file is not part of GNU Emacs.
 
 ;; This program is free software: you can redistribute it and/or modify
