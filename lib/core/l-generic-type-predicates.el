@@ -33,13 +33,17 @@
 (require 'l-exception)
 
 (defun l--naturalp (obj)
-  "Return if obj is a natural number {1, 2, 3, ...}."
+  "Return if obj is a natural number {1, 2, 3, ...}.
+
+since: 1.1.1"
   (and (integerp obj)
        (> obj 0)))
 
 (defun l--alistp (obj)
   "Return t if OBJ is an alist (association list).
-An alist is a list where every element is a cons cell."
+An alist is a list where every element is a cons cell.
+
+since: 0.5.0"
   (and (listp obj)
        (cl-every #'consp obj)))
 
@@ -49,7 +53,9 @@ A plist is a list with an even number of elements.
 
 This is a compatibility wrapper for `plistp', which was added in Emacs 29.
 Uses the built-in `plistp' if available, otherwise provides a fallback
-implementation for Emacs < 29."
+implementation for Emacs < 29.
+
+since: 0.5.0"
   (if (fboundp 'plistp)
       (plistp obj)
     ;; Fallback for Emacs < 29
@@ -58,7 +64,9 @@ implementation for Emacs < 29."
 
 (defun l--instancep (obj)
   "Return t if OBJ is a struct or EIEIO object instance.
-This matches both cl-defstruct instances and EIEIO class instances."
+This matches both cl-defstruct instances and EIEIO class instances.
+
+since: 0.5.0"
   (or (cl-struct-p obj)
       (eieio-object-p obj)))
 
@@ -76,7 +84,9 @@ Examples:
   (l--list-of-p '() :integer)          ; => t (empty list matches any type)
 
   (cl-defstruct point x y)
-  (l--list-of-p (list (make-point :x 1 :y 2)) 'point) ; => t"
+  (l--list-of-p (list (make-point :x 1 :y 2)) 'point) ; => t
+
+since: 1.1.0"
   (and (listp obj)
        (if (keywordp type-or-keyword)
            ;; Keyword type - use our predicates
@@ -96,7 +106,9 @@ Examples:
   (cl-defstruct point x y)
   (l--list-of-instances-p (list (make-point :x 1 :y 2)) 'point) ; => t
   (l--list-of-instances-p '(1 2 3) 'point)                       ; => nil
-  (l--list-of-instances-p '() 'point)                            ; => t (empty list)"
+  (l--list-of-instances-p '() 'point)                            ; => t (empty list)
+
+since: 0.5.0"
   (and (listp obj)
        (cl-every (lambda (elem) (cl-typep elem type-name)) obj)))
 
@@ -152,7 +164,9 @@ Examples:
   :vector → :sequence, :array (vectors are both sequences and arrays)
   :integer → :number (integers are numbers)
   :natural → :integer, :number (natural numbers are integers and numbers)
-  :str → :string, :sequence, :array (alias with full parent chain)")
+  :str → :string, :sequence, :array (alias with full parent chain)
+
+since: 1.1.1")
 
 (defun l-subtype-p (child parent)
   "Check if CHILD type is a subtype of PARENT type.
@@ -170,7 +184,9 @@ Examples:
   (l-subtype-p :list :list)        ; => t (identical)
   (l-subtype-p :list :integer)     ; => nil (unrelated types)
   (l-subtype-p :vector :sequence)  ; => t (vector is a sequence)
-  (l-subtype-p :vector :array)     ; => t (vector is also an array)"
+  (l-subtype-p :vector :array)     ; => t (vector is also an array)
+
+since: 1.1.1"
   (or (eq child parent)
       (let ((parents (cdr (assq child l-type-hierarchy))))
         (and parents
@@ -194,7 +210,9 @@ Examples:
   (l-instanceof (make-point) 'point)   ; => t
   (l-instanceof 42 'point)             ; => nil
 
-Returns t if ELEMENT matches TYPE, nil otherwise."
+Returns t if ELEMENT matches TYPE, nil otherwise.
+
+since: 1.0.0"
   (if (keywordp type)
       ;; Type is a keyword - check in our predicates registry
       (let ((predicate (cdr (assoc type l-generic-type-predicates))))
@@ -230,7 +248,9 @@ Available parameterized types:
   Example: (ldef process-points (pts :list_of_instances point) -> ...)
 
 These are more specific than regular type predicates (which match any
-instance of a category) but less specific than value matches.")
+instance of a category) but less specific than value matches.
+
+since: 0.5.0")
 
 (defvar l-generic-type-predicates
   '(;; Primitive/specific types
@@ -319,7 +339,9 @@ Example usage in patterns:
   (x :string)     ; matches when x is a string
   (x :str)        ; same as above (alias)
   (fn :callable)  ; matches when fn is callable
-  (bv :bvector)   ; matches when bv is a bool-vector")
+  (bv :bvector)   ; matches when bv is a bool-vector
+
+since: 0.2.0")
 
 (provide 'l-generic-type-predicates)
 ;;; l-generic-type-predicates.el ends here.

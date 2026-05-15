@@ -87,7 +87,9 @@ functions are installed via `l-syntax-advices'.
 
 Setting this to t globally allows you to use l syntax everywhere
 without adding file-local variable declarations to each file, while
-setting it to nil provides more granular control on a per-file basis."
+setting it to nil provides more granular control on a per-file basis.
+
+since: 0.3.0"
   :type 'boolean
   :group 'l
   :safe #'booleanp)
@@ -97,7 +99,9 @@ setting it to nil provides more granular control on a per-file basis."
 This function adds around advice to `eval-last-sexp', `eval-region',
 `eval-buffer', `load-file', and `load' to enable l syntax processing.
 
-Enable `l-mode' when `l-syntax' is t."
+Enable `l-mode' when `l-syntax' is t.
+
+since: 0.2.0"
   (interactive)
   (add-hook   'after-change-major-mode-hook #'l-mode--auto-enable)
   (advice-add 'eval-last-sexp      :around #'l--eval-last-sexp-advice)
@@ -109,7 +113,9 @@ Enable `l-mode' when `l-syntax' is t."
 (defun l-syntax-remove-advices ()
   "Remove advice to evaluation functions for l syntax support.
 This function adds around advice to `eval-last-sexp', `eval-region',
-`eval-buffer', `load-file', and `load' to enable l syntax processing."
+`eval-buffer', `load-file', and `load' to enable l syntax processing.
+
+since: 0.2.0"
   (interactive)
   (remove-hook   'after-change-major-mode-hook #'l-mode--auto-enable)
   (advice-remove 'eval-last-sexp               #'l--eval-last-sexp-advice)
@@ -128,7 +134,9 @@ FEATURE is the library name symbol to load.
 FILENAME is optional - if provided, load this file instead of searching.
 NOERROR - if non-nil, don't signal error if file not found.
 
-Returns FEATURE if successful, nil if NOERROR is non-nil and loading failed."
+Returns FEATURE if successful, nil if NOERROR is non-nil and loading failed.
+
+since: 0.3.0"
   (let* ((feature-name (symbol-name feature))
          (file-to-load (or filename
                            (locate-library feature-name)))
@@ -151,7 +159,9 @@ Returns FEATURE if successful, nil if NOERROR is non-nil and loading failed."
 Checks three sources in order:
 1. Global l-syntax variable
 2. Buffer-local l-syntax variable
-3. File-local l-syntax variable (prop-line or local variables section)"
+3. File-local l-syntax variable (prop-line or local variables section)
+
+since: 0.2.0"
   (or
    ;; 1. Check global l-syntax
    (and (boundp 'l-syntax) l-syntax)
@@ -180,7 +190,9 @@ Checks three sources in order:
 (defun l--eval-last-sexp-advice (orig-fun &rest args)
   "Advice for `eval-last-sexp' to handle l-syntax.
 Uses &rest ARGS to handle all possible argument combinations.
-ORIG-FUN is `eval-last-sexp'."
+ORIG-FUN is `eval-last-sexp'.
+
+since: 0.2.0"
   (if (l--should-use-l-syntax-p)
       ;; l-syntax is enabled - evaluate the wrapped sexp directly
       (let* ((sexp (elisp--preceding-sexp))
@@ -198,7 +210,9 @@ ORIG-FUN is `eval-last-sexp'."
 
 (defun l--process-sexp-for-doc (sexp)
   "Process SEXP to group @doc expressions if it's a progn.
-Returns the processed sexp with @doc expressions grouped."
+Returns the processed sexp with @doc expressions grouped.
+
+since: 0.3.0"
   (if (and (consp sexp) (eq (car sexp) 'progn))
       ;; It's a progn - group @doc expressions in the body
       (let ((grouped-body (l--group-doc-expressions (cdr sexp))))
@@ -210,7 +224,9 @@ Returns the processed sexp with @doc expressions grouped."
   "Advice for `eval-region' to handle l-syntax.
 ORIG-FUN is the original load function.
 START and END are the region start and end point.
-ARGS are additional arguments passed to load."
+ARGS are additional arguments passed to load.
+
+since: 0.2.0"
   (if (l--should-use-l-syntax-p)
       ;; l-syntax is enabled - wrap entire region in with-l
       (let* ((region-content (buffer-substring-no-properties start end))
@@ -222,7 +238,9 @@ ARGS are additional arguments passed to load."
 (defun l--eval-buffer-advice (orig-fun &rest args)
   "Advice for `eval-region' to handle l-syntax.
 ORIG-FUN is the original load function.
-ARGS are additional arguments passed to load."
+ARGS are additional arguments passed to load.
+
+since: 0.2.0"
   (if (l--should-use-l-syntax-p)
       ;; l-syntax is enabled - wrap entire buffer in with-l
       (let* ((buffer-content (buffer-substring-no-properties (point-min) (point-max)))
@@ -235,7 +253,9 @@ ARGS are additional arguments passed to load."
   "Load FILENAME with l-syntax processing enabled.
 Only processe
 s .el files, returns nil for other files.
-This is the core loading logic used by both advice and l-require."
+This is the core loading logic used by both advice and l-require.
+
+since: 0.3.0"
   (when (and (file-exists-p filename) (string-suffix-p ".el" filename))
     (with-temp-buffer
       (insert-file-contents filename)
@@ -251,7 +271,9 @@ This is the core loading logic used by both advice and l-require."
 Only processes .el files, .elc files are loaded normally.
 ORIG-FUN is the original load function.
 FILENAME is the file to load.
-ARGS are additional arguments passed to load."
+ARGS are additional arguments passed to load.
+
+since: 0.2.0"
   (if (l-syntax--load filename)
       ;; Successfully loaded with l-syntax
       t
@@ -261,7 +283,9 @@ ARGS are additional arguments passed to load."
 (defun l--group-doc-in-content (content)
   "Group @doc expressions in CONTENT string.
 Transforms: @doc \"...\" (ldef ...) -> (@doc \"...\" (ldef ...))
-Returns the modified content as a string."
+Returns the modified content as a string.
+
+since: 0.3.0"
   (with-temp-buffer
     (insert content)
     (goto-char (point-min))
@@ -280,7 +304,9 @@ Returns the modified content as a string."
 
 (defun l--check-for-doc-before-sexp (sexp)
   "Check if there's a @doc before the current sexp and group them.
-Returns the grouped expression or the original SEXP."
+Returns the grouped expression or the original SEXP.
+
+since: 0.3.0"
   (save-excursion
     (backward-sexp 1) ; Move to start of current sexp
     (skip-chars-backward " \t\n")
@@ -303,7 +329,9 @@ Returns the grouped expression or the original SEXP."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun l-mode--auto-enable ()
-  "Hook for `emacs-lisp-mode' to auto-enable `l-mode' when `l-syntax' is active."
+  "Hook for `emacs-lisp-mode' to auto-enable `l-mode' when `l-syntax' is active.
+
+since: 0.3.0"
   (when (and (eq major-mode 'emacs-lisp-mode)
              (not (eq major-mode 'l-mode))
              (l--should-use-l-syntax-p))

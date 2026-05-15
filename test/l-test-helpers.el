@@ -17,6 +17,7 @@
 (add-to-list 'load-path (expand-file-name "lib" (file-name-directory (or load-file-name buffer-file-name))))
 
 (require 'l-load-path)
+(require 'l-syntax)
 
 
 ;;;###autoload

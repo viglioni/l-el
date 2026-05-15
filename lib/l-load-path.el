@@ -6,7 +6,9 @@
 ;;; Code:
 
 (defun l-setup-load-path ()
-  "Setup load-path for L library."
+  "Setup load-path for L library.
+
+since: 0.3.0"
   (let* ((current-file (or load-file-name buffer-file-name))
          (lib-dir (file-name-directory current-file)))
     

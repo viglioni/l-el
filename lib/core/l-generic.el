@@ -51,7 +51,9 @@ Examples:
   (l-generic--is-primitive-type-p :list)      ; => t (child of :sequence)
   (l-generic--is-primitive-type-p :integer)   ; => t (child of :number)
   (l-generic--is-primitive-type-p :sequence)  ; => nil (parent type)
-  (l-generic--is-primitive-type-p :number)    ; => nil (parent type)"
+  (l-generic--is-primitive-type-p :number)    ; => nil (parent type)
+
+since: 1.1.1"
   (and (assq type-keyword l-type-hierarchy) t))
 
 (defun l-generic--parse-pattern (pattern)
@@ -83,7 +85,9 @@ Examples:
   ;; => (x :list_of :integer)  ; list of keyword type (legacy)
 
   (l-generic--parse-pattern '(x :instance_of point))
-  ;; => (x :instance_of point)  ; parameterized type (legacy)"
+  ;; => (x :instance_of point)  ; parameterized type (legacy)
+
+since: 0.5.0"
   (cond
    ;; Plain symbol → parameter binding
    ((symbolp pattern)
@@ -147,7 +151,9 @@ Examples:
   ;; => \"d0\" (value match + wildcard)
 
   \(l-generic--calculate-specificity \\='((x :instance_of point) (y :list)))
-  ;; => \"cb\" (parameterized type + primitive type)"
+  ;; => \"cb\" (parameterized type + primitive type)
+
+since: 0.1.0"
   (apply #'concat
          (mapcar (lambda (pattern)
                    (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
@@ -213,7 +219,9 @@ Examples:
   ;; => (equal (nth 1 args) \"hello\")
   
   \(l-generic--generate-pattern-condition \\='_ignore 2)
-  ;; => t (wildcard always matches)"
+  ;; => t (wildcard always matches)
+
+since: 0.1.0"
   (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
     (cond
      ((and (eq spec :rest) type-arg)
@@ -293,7 +301,9 @@ Examples:
   ;; => ((x (nth 0 args)) (y (nth 1 args)) (z (nth 2 args)))
   
   (l-generic--generate-bindings \\='(_ignore x))
-  ;; => ((_ignore (nth 0 args)) (x (nth 1 args)))"
+  ;; => ((_ignore (nth 0 args)) (x (nth 1 args)))
+
+since: 0.1.0"
   (let ((rest-pos (cl-position-if (lambda (pattern)
                                    (cl-destructuring-bind (_param spec _type-arg)
                                        (l-generic--parse-pattern pattern)
@@ -349,7 +359,9 @@ Examples:
   (l-generic--generate-method-clause
     \\='(2 2 (x y) (list x y)))
   ;; => (t (let ((x (nth 0 args)) (y (nth 1 args)))
-  ;;         (list x y)))"
+  ;;         (list x y)))
+
+since: 0.2.0"
   (let* ((pattern-list (l--pattern-list method)) ;;method[]
          (body         (l--body method)) ;; func-body
          (bindings     (l-generic--generate-bindings pattern-list)) ;; list
@@ -396,7 +408,9 @@ Examples:
   - Match (calc \='+ 2 3) to first method, return 5
   - Match (calc \='* 2 3) to second method, return 6
   - Match (calc \='unknown 2 3) to third method, raise error
-  - Partially apply (calc \='+) to return a curried function"
+  - Partially apply (calc \='+) to return a curried function
+
+since: 0.1.0"
   (let* ((methods-by-arity (cl-loop for method in methods
                                     for arity = (l--arity method)
                                     collect (cons arity method))) ;; (arity . methods)
@@ -446,7 +460,9 @@ Examples:
                       :actual arity)))))))
 
 (cl-defmethod l-generic--doc ((fname symbol))
-  "Build documentation for FNAME."
+  "Build documentation for FNAME.
+
+since: 0.2.0"
   (format "%s is a generic function.
 Check `ldef' for more documentation.
 
@@ -458,7 +474,9 @@ General documentation: %s"
 
 (defun l-generic--rest-methods (methods)
   "Return methods from METHODS that have a `:rest' param.
-METHODS are a list of `l-generic-method-spec'."
+METHODS are a list of `l-generic-method-spec'.
+
+since: 0.2.0"
   (cl-remove-if-not ;; list of methods that contains :rest in the params
    (lambda (method)
      (cl-some (lambda (pattern)
@@ -515,7 +533,9 @@ The dispatch function is immediately regenerated and evaluated, making
 the new method available for use.
 
 This is an internal function used by the `l-generic' macro and should
-not be called directly by user code."
+not be called directly by user code.
+
+since: 0.1.0"
   
   (l-generic--check-rest-syntax! name pattern-list)
   
@@ -536,7 +556,9 @@ Check `l-generic-method-spec'.
 
 Methods are sorted using lexicographic string comparison, where
 higher specificity strings sort before lower specificity strings.
-This ensures proper dispatch order based on type specificity."
+This ensures proper dispatch order based on type specificity.
+
+since: 0.2.0"
   (sort (cons method methods)
         (lambda (a b) (string> (l--specificity a) (l--specificity b)))))
 
@@ -548,7 +570,9 @@ NAME is the name of the method.
 Examples:
 \(ldef foo a (b :number) (c :rest) -> ...) ;; correct
 \(ldef foo a (b :rest) (c :rest) -> ...)   ;; incorrect - multiple :rest
-\(ldef foo a (b :rest) (c :string) -> ...) ;; incorrect - :rest not last"
+\(ldef foo a (b :rest) (c :string) -> ...) ;; incorrect - :rest not last
+
+since: 0.2.0"
   ;; Check for &rest (Emacs native syntax - not allowed)
   (when (memq '&rest pattern-list)
     (l-raise 'invalid-rest-parameter
@@ -587,7 +611,9 @@ Examples:
   (l-generic--normalize-pattern \\='(x :integer)) => (:integer)
   (l-generic--normalize-pattern \\='(x :instance_of point)) => (:instance_of point)
   (l-generic--normalize-pattern \\='(l--match-123 42)) => 42
-  (l-generic--normalize-pattern \\='(l--match-456 :keyword)) => :keyword"
+  (l-generic--normalize-pattern \\='(l--match-456 :keyword)) => :keyword
+
+since: 1.1.0"
   (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
     (cond
      ;; Value match with generated symbol - return the value
@@ -613,7 +639,9 @@ Examples:
   (l-generic--patterns-equal-p \\='x \\='y) => t  ; both wildcards
   (l-generic--patterns-equal-p \\='(x :integer) \\='(y :integer)) => t  ; param names ignored
   (l-generic--patterns-equal-p \\='(l--match-123 42) 42) => t  ; value match
-  (l-generic--patterns-equal-p \\='(x :integer) \\='(y :string)) => nil  ; different types"
+  (l-generic--patterns-equal-p \\='(x :integer) \\='(y :string)) => nil  ; different types
+
+since: 1.1.0"
   (equal (l-generic--normalize-pattern pattern1)
          (l-generic--normalize-pattern pattern2)))
 
@@ -625,7 +653,9 @@ Compares two pattern lists element by element.
 Examples:
   (l-generic--pattern-lists-equal-p \\='(x y) \\='(a b)) => t  ; both are wildcards
   (l-generic--pattern-lists-equal-p \\='((x :integer) y) \\='((a :integer) b)) => t
-  (l-generic--pattern-lists-equal-p \\='(x y) \\='(x)) => nil  ; different lengths"
+  (l-generic--pattern-lists-equal-p \\='(x y) \\='(x)) => nil  ; different lengths
+
+since: 1.1.0"
   (and (= (length patterns1) (length patterns2))
        (cl-every #'l-generic--patterns-equal-p patterns1 patterns2)))
 
@@ -668,7 +698,9 @@ Examples:
 
 Returns t if a method was removed, nil if no matching method was found.
 
-See also: `l-generic-cleanup' for removing all methods of a function."
+See also: `l-generic-cleanup' for removing all methods of a function.
+
+since: 1.1.0"
   (let* ((current-methods (l--get-from-registry name))
          (remaining-methods
           (cl-remove-if
@@ -739,7 +771,9 @@ Interactive usage:
    \\[l-generic-cleanup] RET my-func RET
 
 See also: `ldef' for defining generic functions,
-         `l-generic-remove-method' for removing specific implementations."
+         `l-generic-remove-method' for removing specific implementations.
+
+since: 0.1.0"
   (interactive "SGeneric function name: ")
   (remhash name l-generic-method-registry)
   (fmakunbound name))
@@ -777,7 +811,9 @@ Methods are ordered by specificity (most specific patterns first):
 
 NAME is the function name to define.
 ARGS is the parameter list, potentially including patterns and &rest.
-BODY is the function body to execute when pattern matches."
+BODY is the function body to execute when pattern matches.
+
+since: 0.1.0"
       
       
       ;; Check for &rest and error
@@ -815,7 +851,9 @@ BODY is the function body to execute when pattern matches."
            ',name)))
 
 (cl-defmethod l-generic-doc ((fname symbol) (docstring string))
-  "Add DOCSTRING to FNAME defined with `ldef'."
+  "Add DOCSTRING to FNAME defined with `ldef'.
+
+since: 0.2.0"
   (l--add-doc-registry fname docstring)
 ;;  (l-generic--generate-dispatch-function)
 

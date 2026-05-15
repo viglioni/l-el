@@ -183,7 +183,9 @@
 (l-require 'l-function)
 
 (defun l-version ()
-  "Return the current version of l.el."
+  "Return the current version of l.el.
+
+since: 1.1.0"
   "1.1.2")
 
 (provide 'l)

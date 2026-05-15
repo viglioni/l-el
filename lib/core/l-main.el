@@ -100,7 +100,9 @@ ARROW-EXPR must be a *symbol* naming a list (typically an `&rest'
 parameter of the calling macro) or a quoted literal — never an unquoted
 list literal, which would be evaluated as a function call.
 
-Used by `l' and `ldef' to parse arrow-syntax argument lists."
+Used by `l' and `ldef' to parse arrow-syntax argument lists.
+
+since: NEXT"
   (declare (indent defun))
   `(let* ((arrow-pos (or (cl-position '-> ,arrow-expr)
                          (signal 'l-invalid-syntax-error
@@ -127,7 +129,9 @@ Examples:
   ;; => \"Hello, World!\"
 
 FN can be a function symbol, lambda expression, or any callable.
-INIT-ARGS are the initial arguments to partially apply to FN."
+INIT-ARGS are the initial arguments to partially apply to FN.
+
+since: 0.2.0"
   (lambda (&rest args)
     (apply fn (append init-args args))))
 
@@ -189,7 +193,9 @@ MANAGING IMPLEMENTATIONS:
   while keeping others.
 
 NAME is the function name to define.
-ARGS-AND-BODY contains arguments, ->, and body expressions."
+ARGS-AND-BODY contains arguments, ->, and body expressions.
+
+since: 1.0.0"
 
   (l--with-arrow args-and-body
     ;; Check for &rest
@@ -219,7 +225,9 @@ Examples:
   (with-l (+ ((add3 1) 2 3) ((multiply3 2) 3 4)))  ;; => 30
 
 BODY contains the expressions to transform.
-Regular function calls and other expressions are left unchanged."
+Regular function calls and other expressions are left unchanged.
+
+since: 0.2.0"
   (let ((grouped-body (l--group-doc-expressions body)))
     `(progn ,@(mapcar (lambda (expr)
                         (l--transform-curry-calls (macroexpand-all expr)))
@@ -258,7 +266,9 @@ Examples:
   ;; => (2 3 4)
 
 The arrow `->` must be present in the expression list, otherwise
-the macro will not work correctly."
+the macro will not work correctly.
+
+since: 0.2.0"
   (l--with-arrow expr
     `(lambda ,arrow-expr-args ,@arrow-expr-body)))
 
@@ -319,7 +329,9 @@ Example:
   ;; Evaluates to: ((1 2 3) 1 (2 3))
 
 The substitution is recursive, so nested lists and complex
-expressions are handled correctly."
+expressions are handled correctly.
+
+since: 0.2.0"
   (cl-labels ((substitute-__ (expr replacement)
                 (cond
                  ((eq expr '__) replacement)
@@ -337,7 +349,9 @@ expressions are handled correctly."
       block)))
 
 (defmacro @doc (docstring &rest ldef-exprs)
-  "Add DOCSTRING to function-name defined in LDEF-EXPRS defined with `ldef'."
+  "Add DOCSTRING to function-name defined in LDEF-EXPRS defined with `ldef'.
+
+since: 0.3.0"
   `(progn (l-generic-doc ',(cadar ldef-exprs) ,docstring)
           ,@ldef-exprs))
 
@@ -376,7 +390,9 @@ The transformation rules:
 
 EXPR is the expression to transform, can be an atom, list, or nested structure.
 Returns the transformed expression with curried calls
-converted to funcall forms."
+converted to funcall forms.
+
+since: 0.2.0"
   (cond
    ;; Don't transform special forms
    ((and (consp expr)
@@ -419,7 +435,9 @@ converted to funcall forms."
 (defun l--group-doc-expressions (body)
   "Group @doc expressions with their following expression.
 Transforms: @doc \"...\" (ldef ...) -> (@doc \"...\" (ldef ...))
-BODY is a list of expressions."
+BODY is a list of expressions.
+
+since: 0.3.0"
   (let ((result '())
         (remaining body))
     

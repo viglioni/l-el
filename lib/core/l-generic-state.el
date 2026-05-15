@@ -50,30 +50,42 @@ never outscore a single primitive type match.
 Example registry entry:
   \='my-func -> ((\"bb\" 2 ((x :integer) (y :string)) (body...))
                (\"ab\" 2 ((x :sequence) (y :integer)) (body...))
-               (\"00\" 2 (x y) (body...)))")
+               (\"00\" 2 (x y) (body...)))
+
+since: 0.2.0")
 
 (defun l--add-to-registry (name methods)
   "Add item to `l-generic-method-registry'.
-Key NAME and value METHODS."
+Key NAME and value METHODS.
+
+since: 0.2.0"
   (puthash name methods l-generic-method-registry))
 
 (defun l--get-from-registry (name)
   "Get item key NAME from `l-generic-method-registry'.
-Defaults to empty list."
+Defaults to empty list.
+
+since: 0.2.0"
   (gethash name l-generic-method-registry '()))
 
 (defvar l-generic-doc-registry (make-hash-table :test 'equal)
   "Registry of general documentation of `ldef' functions.
-Check `l-doc' for usage.")
+Check `l-doc' for usage.
+
+since: 0.2.0")
 
 (defun l--add-doc-registry (fname docstring)
   "Add item to `l-generic-doc-registry'.
-Key FNAME and value DOCSTRING."
+Key FNAME and value DOCSTRING.
+
+since: 0.2.0"
   (puthash fname docstring l-generic-doc-registry))
 
 (cl-defmethod l--get-doc-registry ((fname symbol))
   "Get item key FNAME from `l-generic-doc-registry'.
-Defaults to \"Not documented\"."
+Defaults to \"Not documented\".
+
+since: 0.2.0"
   (gethash fname l-generic-doc-registry "Not documented."))
 
 
@@ -84,13 +96,17 @@ Each method spec contains:
 - `body': Code to execute when matched
 - `pattern-list': The actual patterns to match
 - `specificity': String for lexicographic pattern matching priority
-                 (e.g., \"d\" > \"c\" > \"b\" > \"a\" > \"0\")"
+                 (e.g., \"d\" > \"c\" > \"b\" > \"a\" > \"0\")
+
+since: 0.2.0"
   specificity arity pattern-list body)
 
 
 (defun l--method (arity body pattern-list specificity)
   "Create \='l-generic-method-spec.
-ARITY BODY PATTERN-LIST SPECIFICITY are the struct params."
+ARITY BODY PATTERN-LIST SPECIFICITY are the struct params.
+
+since: 0.2.0"
   (make-l-generic-method-spec
    :arity         arity
    :body          body
@@ -98,16 +114,24 @@ ARITY BODY PATTERN-LIST SPECIFICITY are the struct params."
    :specificity   specificity))
 
 (cl-defmethod l--arity ((m l-generic-method-spec))
-  "Get the arity from method specification M."
+  "Get the arity from method specification M.
+
+since: 0.2.0"
   (l-generic-method-spec-arity m))
 (cl-defmethod l--body ((m l-generic-method-spec))
-  "Get the body from method specification M."
+  "Get the body from method specification M.
+
+since: 0.2.0"
   (l-generic-method-spec-body m))
 (cl-defmethod l--pattern-list ((m l-generic-method-spec))
-  "Get the pattern list from method specification M."
+  "Get the pattern list from method specification M.
+
+since: 0.2.0"
   (l-generic-method-spec-pattern-list m))
 (cl-defmethod l--specificity ((m l-generic-method-spec))
-  "Get the specificity from method specification M."
+  "Get the specificity from method specification M.
+
+since: 0.2.0"
   (l-generic-method-spec-specificity m))
 
 (provide 'l-generic-state)

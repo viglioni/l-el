@@ -80,7 +80,9 @@ With local bindings:
   (with-l ((lcomp (+ __ 1) square) 3))) ;; => 10"
   `(l--comp ,@(mapcar (lambda (x) `(__ ,x)) fns)))
 
-@doc "Internal function for `lcomp'. Composes functions right to left."
+@doc "Internal function for `lcomp'. Composes functions right to left.
+
+since: 1.0.0"
 (ldef l--comp -> (l x -> x))
 
 (ldef l--comp (f :function) -> f)
@@ -141,7 +143,9 @@ lpipe and lcomp produce the same result but with reversed order.
   `(l--pipe ,arg ,@(mapcar (lambda (x) `(__ ,x)) fns)))
 
 
-@doc "Internal function for `lpipe'. Pipes value through functions left to right."
+@doc "Internal function for `lpipe'. Pipes value through functions left to right.
+
+since: 1.0.0"
 (ldef l--pipe arg -> arg)
 
 (ldef l--pipe arg (f :function) -> (funcall f arg))

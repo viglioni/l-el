@@ -61,10 +61,15 @@
                       (seq "\\" anything)
                       (seq "\"" (* (or (not (any "\"\\")) (seq "\\" anything))) "\"")))
                ")")))
-      ")"))
+      ")")
+  "Regex matching a single s-expression with one level of nesting.
+
+since: 0.3.0")
 
 (defun l-highlight-sexps-in-docstring (limit)
-  "Font-lock matcher for s-expressions within docstrings up to LIMIT."
+  "Font-lock matcher for s-expressions within docstrings up to LIMIT.
+
+since: 0.3.0"
   (let (match-found)
     (while (and (not match-found) 
                 (re-search-forward "(" limit t))
@@ -83,7 +88,9 @@
     match-found))
 
 (defun l-mode-point-in-docstring-p ()
-  "Return non-nil if point is inside a docstring."
+  "Return non-nil if point is inside a docstring.
+
+since: 0.3.0"
   (let ((face (get-text-property (point) 'face)))
     (or (eq face 'font-lock-doc-face)
         (and (listp face) (memq 'font-lock-doc-face face)))))
@@ -146,11 +153,15 @@ since: 1.1.0"
      (1 (when (save-match-data (l-mode-point-in-docstring-p))
           'shadow)
         prepend)))
-  "Additional font lock keywords for `l-mode'.")
+  "Additional font lock keywords for `l-mode'.
+
+since: 0.3.0")
 
 (defun l-font-lock-syntactic-face-function (state)
   "Determine syntactic face for position based on STATE.
-This function handles @doc strings specially, treating them as docstrings."
+This function handles @doc strings specially, treating them as docstrings.
+
+since: 0.3.0"
   (if (nth 3 state)  ; we're in a string
       (save-excursion
         (goto-char (nth 8 state))  ; go to string start

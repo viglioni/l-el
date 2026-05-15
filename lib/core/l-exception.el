@@ -58,7 +58,9 @@
   "Raise a type mismatch error.
 PREDICATE is the expected type predicate (e.g., \\='functionp).
 VALUE is the actual value that failed the predicate.
-CONTEXT is an optional context string."
+CONTEXT is an optional context string.
+
+since: 0.5.0"
   (signal 'l-type-mismatch-error
           (if context
               (list predicate value context)
@@ -68,26 +70,34 @@ CONTEXT is an optional context string."
   "Raise an arity error.
 FUNCTION-NAME is the name of the function.
 EXPECTED is the expected number of arguments or list of valid arities.
-ACTUAL is the actual number of arguments received."
+ACTUAL is the actual number of arguments received.
+
+since: 0.5.0"
   (signal 'l-arity-error
           (list function-name expected actual)))
 
 (defun l--raise-pattern-match-error (function-name args)
   "Raise a pattern match error.
 FUNCTION-NAME is the name of the function.
-ARGS is the list of arguments that couldn't be matched."
+ARGS is the list of arguments that couldn't be matched.
+
+since: 0.5.0"
   (signal 'l-pattern-match-error
           (list function-name args)))
 
 (defun l--raise-error (format-string &rest args)
-  "Raise a generic l-error with FORMAT-STRING and ARGS."
+  "Raise a generic l-error with FORMAT-STRING and ARGS.
+
+since: 0.5.0"
   (signal 'l-error (list (apply #'format format-string args))))
 
 (defun l--raise-unknown-type-predicate (type-keyword &optional context)
   "Raise an unknown type predicate error.
 TYPE-KEYWORD is the unknown type keyword (e.g., \\=':invalid-type).
 CONTEXT is an optional string describing where the error occurred
-\(e.g., \"pattern matching\" or \"list_of validation\")."
+\(e.g., \"pattern matching\" or \"list_of validation\").
+
+since: 0.5.0"
   (signal 'l-unknown-type-predicate-error
           (if context
               (list type-keyword context)
@@ -96,7 +106,9 @@ CONTEXT is an optional string describing where the error occurred
 (defun l--raise-invalid-rest-parameter (function-name message)
   "Raise an invalid rest parameter error.
 FUNCTION-NAME is the name of the function being defined.
-MESSAGE is a string describing the specific validation error."
+MESSAGE is a string describing the specific validation error.
+
+since: 1.0.0"
   (signal 'l-invalid-rest-parameter-error
           (list function-name message)))
 
