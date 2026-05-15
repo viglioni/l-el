@@ -78,28 +78,28 @@ This lib is currently written on macOS M4 Max with Emacs 29.4, only QAed in this
 ** Features
 
 *** Core Pattern Matching & Dispatch
-- **Direct value matching** - Match literal values directly: numbers, strings, keywords, quoted symbols, nil, t, vectors, and lists
-- **Type-based dispatch** - Comprehensive type system with primitive types, category types, and parameterized types (=:instance_of=, =:list_of=)
-- **Automatic currying** - Functions curry automatically when called with fewer arguments than defined
-- **Lexicographic specificity** - Intelligent pattern ordering ensures most specific patterns match first
+- *Direct value matching* - Match literal values directly: numbers, strings, keywords, quoted symbols, nil, t, vectors, and lists
+- *Type-based dispatch* - Comprehensive type system with primitive types, category types, and parameterized types (=:instance_of=, =:list_of=)
+- *Automatic currying* - Functions curry automatically when called with fewer arguments than defined
+- *Lexicographic specificity* - Intelligent pattern ordering ensures most specific patterns match first
 
 *** Functional Programming Primitives
-- **Arrow syntax** - Clean, modern syntax with =->= for lambdas (=l=) and function definitions (=ldef=)
-- **Partial application** - =lpartial= for creating partially applied functions
-- **Placeholder substitution** - Elegant =__= placeholder for concise anonymous functions
-- **Function composition** - =lcomp= and =lpipe= for composing transformations
+- *Arrow syntax* - Clean, modern syntax with =->= for lambdas (=l=) and function definitions (=ldef=)
+- *Partial application* - =lpartial= for creating partially applied functions
+- *Placeholder substitution* - Elegant =__= placeholder for concise anonymous functions
+- *Function composition* - =lcomp= and =lpipe= for composing transformations
 
 *** Developer Experience
-- **Enhanced major mode** - =l-mode= with specialized syntax highlighting for ldef functions, calls, and arrows
-- **Elixir-style documentation** - =@doc= macro for beautiful, discoverable function documentation
-- **Syntax transformation** - =with-l= and =l-syntax= enable natural curried function call syntax without explicit funcall
-- **Type predicates** - Extensive type checking with 30+ built-in predicates plus parameterized types
+- *Enhanced major mode* - =l-mode= with specialized syntax highlighting for ldef functions, calls, and arrows
+- *Elixir-style documentation* - =@doc= macro for beautiful, discoverable function documentation
+- *Syntax transformation* - =with-l= and =l-syntax= enable natural curried function call syntax without explicit funcall
+- *Type predicates* - Extensive type checking with 30+ built-in predicates plus parameterized types
 
 *** Advanced Features
-- **Rest parameters** - Variadic functions with =(param :rest)= syntax
-- **Generic function management** - Tools for inspecting and cleaning up ldef functions
-- **Custom exceptions** - Structured error handling with =l-raise=
-- **Specialized loading** - =l-require= with automatic l-syntax processing
+- *Rest parameters* - Variadic functions with =(param :rest)= syntax
+- *Generic function management* - Tools for inspecting and cleaning up ldef functions
+- *Custom exceptions* - Structured error handling with =l-raise=
+- *Specialized loading* - =l-require= with automatic l-syntax processing
 
 Check [[./changelog.org][changelog]] and [[./docs/breaking-changes.org][breaking changes]] for version history.
 
@@ -130,18 +130,18 @@ Or clone this repository, add =l.el= to your load path and require it:
 
 The =l-syntax= variable controls syntax transformation behavior and can be configured in multiple ways:
 
-***Global Configuration:***
+*Global Configuration:*
 #+begin_src emacs-lisp
 (setq l-syntax t)
 (l-syntax-advices)  ; Enable automatic transformation for evaluation functions
 #+end_src
 
-***File-local Configuration (Property Line):***
+*File-local Configuration (Property Line):*
 #+begin_src emacs-lisp
 ;; -*- l-syntax: t; -*-
 #+end_src
 
-***File-local Configuration (Local Variables):***
+*File-local Configuration (Local Variables):*
 #+begin_src emacs-lisp
 ;; Local Variables:
 ;; l-syntax: t

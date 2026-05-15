@@ -34,7 +34,8 @@
 ;;   - If the file changed since CURRENT-VERSION's tag (ignoring the
 ;;     `;; updated-at:' line itself), appends NEW-VERSION to its `updated-at' list.
 ;;
-;; Plus: Cask, readme.org, the `l-version' defun in l.el, and the changelog.
+;; Plus: Cask, readme.org, the `l-version' defun in l.el, the version
+;; literal asserted by `test/l-test.el', and the changelog.
 ;;
 ;; Safety
 ;; ------
@@ -216,9 +217,30 @@ straight/, .cask/, and .git/ are excluded."
 (defun l-release--rewrite-l-version (file new-version)
   "Rewrite the version literal returned by `l-version' in FILE.
 Returns t iff modified.  Matches loosely so formatting changes to the
-defun (extra whitespace, edited docstring) don't break it."
+defun (extra whitespace, edited docstring) don't break it.
+
+Uses an explicit \"[ \\t\\n\\r]\" whitespace class rather than
+\"[[:space:]]\" because the latter is syntax-table based and does not
+match newlines/tabs in `string-match' outside a buffer context."
   (let* ((orig (l-release--read-file file))
-         (rx "\\((defun l-version\\b[^\"]*\"[^\"]*\"[[:space:]]*\\)\"[0-9]+\\.[0-9]+\\.[0-9]+\"")
+         (rx "\\((defun l-version\\b[^\"]*\"[^\"]*\"[ \t\n\r]*\\)\"[0-9]+\\.[0-9]+\\.[0-9]+\"")
+         (after (replace-regexp-in-string
+                 rx
+                 (format "\\1\"%s\"" new-version)
+                 orig)))
+    (unless (string= orig after)
+      (l-release--write-file file after)
+      t)))
+
+(defun l-release--rewrite-l-version-test (file new-version)
+  "Rewrite the version literal asserted by the umbrella smoke test in FILE.
+The smoke test pins `l-version' to the current release; that pin must be
+bumped in lockstep with the release.  Returns t iff modified.
+
+Matches `(l-version) :to-equal \"X.Y.Z\"' tolerantly w.r.t. whitespace so
+formatting tweaks don't silently disable the rewrite."
+  (let* ((orig (l-release--read-file file))
+         (rx "\\((l-version)[ \t\n\r]*:to-equal[ \t\n\r]*\\)\"[0-9]+\\.[0-9]+\\.[0-9]+\"")
          (after (replace-regexp-in-string
                  rx
                  (format "\\1\"%s\"" new-version)
@@ -283,6 +305,14 @@ Operates from the git repo containing `default-directory'.  In batch mode
                  (l-release--rewrite-l-version lfile new-version))
         (cl-pushnew (expand-file-name lfile) modified-files :test #'string=)
         (message "Updated l-version function in %s" lfile)))
+
+    ;; l-version smoke test (pins `(l-version)' to the current release so a
+    ;; missed bump fails CI rather than silently shipping a stale version).
+    (let ((tfile "test/l-test.el"))
+      (when (and (file-exists-p tfile)
+                 (l-release--rewrite-l-version-test tfile new-version))
+        (cl-pushnew (expand-file-name tfile) modified-files :test #'string=)
+        (message "Updated l-version assertion in %s" tfile)))
 
     ;; Changelog
     (let ((changelog (cond ((file-exists-p "changelog.org") "changelog.org")

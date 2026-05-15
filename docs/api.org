@@ -10,22 +10,27 @@
 - [[#table-of-contents][Table of Contents]]
 - [[#variables][Variables]]
   - [[#l-syntax][l-syntax]]
-- [[#functions][Functions]]
+  - [[#l-type-hierarchy][l-type-hierarchy]]
+- [[#functions-and-macros][Functions and macros]]
   - [[#__-block-optional-arg][__ (block &optional arg)]]
   - [[#doc-docstring-rest-ldef-exprs][@doc (docstring &rest ldef-exprs)]]
   - [[#l-rest-expr][l (&rest expr)]]
   - [[#l-generic-cleanup-name][l-generic-cleanup (name)]]
   - [[#l-generic-remove-method-name-pattern-list][l-generic-remove-method (name pattern-list)]]
+  - [[#l-instanceof-element-type][l-instanceof (element type)]]
   - [[#l-mode][l-mode]]
   - [[#l-require-feature-optional-filename-noerror][l-require (feature &optional filename noerror)]]
   - [[#l-syntax-advices][l-syntax-advices]]
   - [[#l-syntax-remove-advices][l-syntax-remove-advices]]
+  - [[#l-subtype-p-child-parent][l-subtype-p (child parent)]]
   - [[#l-version][l-version]]
   - [[#ldef-name-rest-args-and-body][ldef (name &rest args-and-body)]]
+  - [[#ldefp-name][ldefp (name)]]
   - [[#lpartial-fn-rest-init-args][lpartial (fn &rest init-args)]]
   - [[#with-l-rest-body][with-l (&rest body)]]
 - [[#utilities][Utilities]]
   - [[#lcomp-rest-functions][lcomp (&rest functions)]]
+  - [[#lpipe-arg-rest-fns][lpipe (arg &rest fns)]]
 - [[#type-system][Type System]]
 :END:
 
@@ -38,6 +43,41 @@ Controls whether l syntax transformations are applied during evaluation.
 When set to =t= globally, l syntax transformations will be applied to all elisp evaluation operations without requiring file-local variable declarations in individual files.
 
 When set to =nil= (the default), l syntax transformations will only be applied to files that explicitly declare =l-syntax= as a file-local variable.
+
+** =l-type-hierarchy=
+
+Alist mapping every type keyword to its list of parent types. Used by
+=ldef= specificity to distinguish primitive types (children) from
+category types (parents), and by =l-subtype-p= to answer subtype
+questions transitively.
+
+Examples of the encoded relations:
+
+#+begin_src emacs-lisp
+;; :list and :vector are sequences
+(:list   . (:sequence))
+(:vector . (:sequence :array))
+;; :natural is a kind of :integer, which is a kind of :number
+(:integer . (:number))
+(:natural . (:integer :number))
+;; Aliases include the full parent chain
+(:str    . (:string :sequence :array))
+#+end_src
+
+Treat the contents as read-only. The variable is public so users can
+inspect/extend the hierarchy in advanced scenarios, but =ldef= behaviour
+is the supported contract.
+
+*** Inspecting the hierarchy:
+#+begin_src emacs-lisp
+;; Direct parents of a type
+(cdr (assq :vector l-type-hierarchy))   ;; => (:sequence :array)
+(cdr (assq :natural l-type-hierarchy))  ;; => (:integer :number)
+
+;; Use l-subtype-p for transitive checks rather than walking by hand
+(l-subtype-p :natural :number)          ;; => t  (transitive)
+(l-subtype-p :natural :sequence)        ;; => nil
+#+end_src
 
 * Functions and macros
 
@@ -247,6 +287,29 @@ After removing the method:
 
 See also: =l-generic-cleanup= for removing all methods of a function, =ldef= for defining generic functions.
 
+** =l-instanceof (element type)=
+
+Check whether ELEMENT is an instance of TYPE.
+
+TYPE can be either:
+- A keyword from =l-generic-type-predicates= (e.g. =:integer=, =:string=, =:list=, =:natural=)
+- A symbol naming a =cl-defstruct= or EIEIO class (checked via =cl-typep=)
+
+Returns =t= on match, =nil= otherwise. Same predicate used by =ldef= for
+type-pattern matching, exposed for use outside =ldef= sites.
+
+*** Examples:
+#+begin_src emacs-lisp
+(l-instanceof 42 :integer)         ;; => t
+(l-instanceof "hi" :string)        ;; => t
+(l-instanceof '(1 2 3) :list)      ;; => t
+(l-instanceof 0 :natural)          ;; => nil
+
+(cl-defstruct point x y)
+(l-instanceof (make-point) 'point) ;; => t
+(l-instanceof 42 'point)           ;; => nil
+#+end_src
+
 ** =l-mode=
 
 Enhanced major mode extending =emacs-lisp-mode= with specialized features for l.el.
@@ -298,15 +361,61 @@ NOERROR when non-nil, don't signal an error if the file is not found.
 
 ** =l-syntax-advices=
 
-Add advice to evaluation functions for l syntax support.
+Add advice to evaluation functions so that =l-syntax= transformations
+are applied during =eval-last-sexp=, =eval-region=, =eval-buffer=,
+=load-file=, and =load=. After this is active, files that declare
+=l-syntax: t= (globally or as a file-local) get curried-call syntax
+without needing to wrap each form in =with-l=.
 
-This function adds around advice to =eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and =load= to enable l syntax processing.
+*** Examples:
+#+begin_src emacs-lisp
+;; Typical init.el setup
+(require 'l)
+(setq l-syntax t)         ;; opt every elisp eval into l-syntax
+(l-syntax-advices)        ;; install the advices
+
+;; Or scoped per-file:
+;; In some-file.el, top line:
+;;   ;; -*- l-syntax: t; -*-
+;; Then with the advices installed, evaluating that file expands
+;; curried calls automatically.
+
+;; Disable later
+(l-syntax-remove-advices)
+#+end_src
 
 ** =l-syntax-remove-advices=
 
-Remove advice from evaluation functions for l syntax support.
+Remove the advices installed by =l-syntax-advices= from
+=eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and
+=load=. After calling, evaluation reverts to standard Emacs behaviour
+regardless of =l-syntax=.
 
-This function removes around advice from =eval-last-sexp=, =eval-region=, =eval-buffer=, =load-file=, and =load= that was added by =l-syntax-advices=.
+*** Examples:
+#+begin_src emacs-lisp
+;; Toggle off during a debugging session
+(l-syntax-remove-advices)
+;; ... eval things with stock semantics ...
+(l-syntax-advices)        ;; restore
+#+end_src
+
+** =l-subtype-p (child parent)=
+
+Return =t= if type keyword CHILD is a subtype of type keyword PARENT,
+=nil= otherwise. The relation is reflexive (any type is a subtype of
+itself) and transitive (walks =l-type-hierarchy=).
+
+Both CHILD and PARENT must be type keywords. For struct/class
+relationships use =cl-typep= or =l-instanceof=.
+
+*** Examples:
+#+begin_src emacs-lisp
+(l-subtype-p :list :sequence)    ;; => t   (direct parent)
+(l-subtype-p :natural :number)   ;; => t   (transitive: :natural → :integer → :number)
+(l-subtype-p :list :list)        ;; => t   (reflexive)
+(l-subtype-p :vector :array)     ;; => t   (vectors are arrays)
+(l-subtype-p :list :integer)     ;; => nil (unrelated)
+#+end_src
 
 ** =l-version=
 
@@ -316,7 +425,7 @@ This function returns the version string of the currently loaded l.el library. T
 
 *** Examples:
 #+begin_src emacs-lisp
-(l-version)  ;; => "1.0.0"
+(l-version)  ;; => "1.1.1"
 #+end_src
 
 *** Notes
@@ -350,13 +459,40 @@ Arguments support:
 
 *** Method Specificity
 
-When multiple methods match, they are ordered by specificity (most specific first):
-1. Value matches: 1000 points each
-2. Type matches: 100 points each
-3. Wildcards: 1 point each
-4. Regular parameters: 0 points
+When multiple methods match, they are ordered by specificity using
+lexicographic comparison of per-position scores (most specific first).
+Each position contributes one character to a specificity string:
 
-The method with the highest total specificity is called first.
+- =d= - value match (most specific)
+- =c= - parameterized type match (=:instance_of=, =:list_of=, struct types, typed =:rest=)
+- =b= - primitive type (=:list=, =:integer=, =:string=, =:natural=, ...)
+- =a= - category type (=:sequence=, =:number=, =:array=, ...)
+- =0= - wildcard, regular parameter, or untyped =:rest= (least specific)
+
+The strings are compared lexicographically. This guarantees that a
+single primitive at position 1 (="b"=) beats multiple categories
+(="aaa"=), and that more specific types at *earlier* positions take
+priority. Primitive vs. category is derived from =l-type-hierarchy=.
+
+**** Worked example
+
+#+begin_src emacs-lisp
+;; Same arity, different specificities at position 1
+(ldef classify 0 -> "zero")                      ;; score: "d"
+(ldef classify (n :natural) -> "positive int")   ;; score: "b"  (primitive)
+(ldef classify (n :number) -> "other number")    ;; score: "a"  (category)
+(ldef classify n -> "anything")                  ;; score: "0"
+
+;; Ordering (lex sort, descending): "d" > "b" > "a" > "0"
+(classify 0)        ;; => "zero"          (value match wins)
+(classify 5)        ;; => "positive int"  (:natural primitive beats :number)
+(classify 1.5)      ;; => "other number"  (not :natural, but :number)
+(classify "hello")  ;; => "anything"      (wildcard fallback)
+#+end_src
+
+A single primitive type at any position outranks any number of
+category matches at later positions — the score ="b"= sorts above
+="aaa"=.
 
 *** Pattern Matching Examples
 
@@ -486,6 +622,31 @@ The =:rest= type collects all remaining arguments into a list. It must be the la
 (format-with-prefix "Error" "file not found")  ;; => "Error: file not found"
 #+end_src
 
+**** Typed rest parameters
+
+=:rest= can be paired with a type keyword or struct/class name to
+constrain the accepted elements. Typed rest has higher specificity
+than untyped rest, enabling fallback patterns.
+
+#+begin_src emacs-lisp
+;; Keyword type - only accepts integers
+(ldef sum-ints (nums :rest :integer) -> (apply '+ nums))
+(sum-ints 1 2 3)        ;; => 6
+(sum-ints 1 "two" 3)    ;; => error: no matching pattern
+
+;; Struct/class type - only accepts point instances
+(cl-defstruct point x y)
+(ldef centroid (pts :rest point) ->
+      (cons (/ (apply '+ (mapcar #'point-x pts)) (length pts))
+            (/ (apply '+ (mapcar #'point-y pts)) (length pts))))
+
+;; Typed rest + untyped fallback
+(ldef collect (xs :rest :string) -> (mapconcat #'identity xs ", "))
+(ldef collect (xs :rest) -> (format "%S" xs))
+(collect "a" "b" "c")   ;; => "a, b, c"
+(collect 1 2 3)         ;; => "(1 2 3)"
+#+end_src
+
 *** Currying
 
 Functions defined with =ldef= automatically curry when called with fewer arguments than defined.
@@ -526,6 +687,19 @@ When no pattern matches the provided arguments, an error is raised:
 - =:rest= must be the last parameter.
 - Use =l-generic-cleanup= to remove a function and all its methods.
 - Use =l-generic-remove-method= to remove a specific implementation while keeping others.
+
+** =ldefp (name)=
+
+Return non-nil if NAME (a symbol) is the name of a function defined
+with =ldef=. Checks the internal generic-function registry.
+
+*** Examples:
+#+begin_src emacs-lisp
+(ldef my-func x -> (+ x 1))
+(ldefp 'my-func)  ;; => t
+(ldefp 'concat)   ;; => nil  (built-in function)
+(ldefp 'when)     ;; => nil  (macro)
+#+end_src
 
 ** =lpartial (fn &rest init-args)=
 
@@ -569,6 +743,8 @@ Macros inside =with-l= are expanded before transformation, so macros like =lcomp
 
 Note: Regular function calls and special forms (=let=, =if=, =defun=, etc.) are left unchanged.
 
+* Utilities
+
 ** =lcomp (&rest functions)=
 
 Compose functions for elegant data transformation.
@@ -603,6 +779,33 @@ Each argument is automatically wrapped with =__=, so you can use the placeholder
   (with-l ((lcomp (+ __ 1) square) 3)))  ;; => 10
 #+end_src
 
+** =lpipe (arg &rest fns)=
+
+Pipe ARG through FNS, left to right. Each function in FNS receives the
+result of the previous one. Equivalent to =(funcall (lcomp fn-n ... fn-2 fn-1) arg)=
+but reads in the natural data-flow order.
+
+Each function argument is automatically wrapped with =__=, so the
+placeholder syntax works inline (same convention as =lcomp=).
+
+*** Examples:
+#+begin_src emacs-lisp
+;; Basic pipe with named functions
+(ldef double (l x -> (* 2 x)))
+(ldef add-one (l x -> (+ 1 x)))
+(lpipe 5 double add-one)         ;; => 11   (double then add-one)
+
+;; Inline placeholder syntax
+(lpipe 5 (* __ 2) (+ __ 1))      ;; => 11
+
+;; String pipeline
+(lpipe "  hello  " string-trim upcase)   ;; => "HELLO"
+
+;; Compared to lcomp (note reversed order)
+(lpipe 5 (* __ 2) (+ __ 1))                  ;; => 11
+(funcall (lcomp (+ __ 1) (* __ 2)) 5)        ;; => 11
+#+end_src
+
 * Type System
 
 The library supports the following type predicates for pattern matching:
@@ -617,8 +820,8 @@ The library supports the following type predicates for pattern matching:
 - =:float= - floatp
 - =:function= - functionp
 - =:hash-table= - hash-table-p
-- =:integer= - integerp
 - =:list= - listp
+- =:natural= - l--naturalp (positive integers; rejects 0, negatives, floats)
 - =:null= - null
 - =:object= - eieio-object-p (EIEIO class instances)
 - =:plist= - plistp (property lists =(:k v ...)=)
@@ -633,6 +836,7 @@ The library supports the following type predicates for pattern matching:
 - =:array= - arrayp (vectors, strings, char-tables, bool-vectors)
 - =:callable= - function or subroutine
 - =:instance= - l--instancep (cl-defstruct and EIEIO class instances)
+- =:integer= - integerp (parent of =:natural=)
 - =:number= - numberp (integers and floats)
 - =:sequence= - sequencep (lists, vectors, strings)
 
@@ -766,7 +970,9 @@ Examples:
 
 *** Specificity
 
-Parameterized types (10,000 points) are more specific than regular type predicates (100 points) but less specific than value matches (1,000,000 points).
+In the lexicographic specificity scheme (see =ldef= → Method Specificity),
+parameterized types score =c= per position, ranking above primitive
+types (=b=) and category types (=a=), but below value matches (=d=).
 
 ** Aliases (short forms)
 

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+** Fixed
+- Removed broken =(l-require 'typeclasses)= from =l.el= (module was
+  never shipped).
+
+** Internal
+- Smoke test (=test/l-test.el=) loads =l.el= and pins =(l-version)= to
+  the current release, so future top-level breakage fails CI.
+- =scripts/release.el= bumps the smoke-test assertion alongside the
+  =l-version= defun.
+
 * 1.1.1 - 2026-05-14
 
 ** Added

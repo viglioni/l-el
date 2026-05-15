@@ -181,11 +181,10 @@
 
 ;; utilities
 (l-require 'l-function)
-(l-require 'typeclasses)
 
 (defun l-version ()
   "Return the current version of l.el."
-  "1.1.0")
+  "1.1.1")
 
 (provide 'l)
 ;;; l.el ends here
