@@ -61,6 +61,7 @@
 
 (require 'l-main)
 (require 'l-mode)
+(require 'l-exception)
 (defcustom l-syntax nil
   "Controls whether l syntax transformations are applied during evaluation.
 
@@ -139,7 +140,7 @@ Returns FEATURE if successful, nil if NOERROR is non-nil and loading failed."
           feature)
       (if noerror
           nil
-        (error "Cannot find library `%s'" feature-name)))))
+        (signal 'l-missing-library-error (list feature-name))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Use l syntax without `with-l' ;;

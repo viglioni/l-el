@@ -137,9 +137,12 @@ Returns a cons (NEW-STR . MODIFIED-P).  MODIFIED-P is nil if no
       (string-trim (buffer-string)))))
 
 (defun l-release--file-changed-since-tag-p (file tag)
-  "Non-nil iff FILE has non-`;; updated-at:' changes between TAG and HEAD."
+  "Non-nil iff FILE has non-comment changes between TAG and HEAD.
+Comment-only edits (copyright bumps, header annotations like `;; since:'
+and `;; updated-at:', section markers, inline `;' comments on
+otherwise-comment lines) do not count as a substantive change."
   (let ((rc (l-release--git "diff" "--quiet"
-                            "-I" "^;; updated-at:"
+                            "-I" "^;"
                             tag "--" file)))
     (cond
      ((= rc 0) nil)

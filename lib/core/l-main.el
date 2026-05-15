@@ -29,17 +29,21 @@
 ;; Emacs Lisp, drawing inspiration from Common Lisp, Haskell and Elixir.
 ;;
 ;; This library introduces currying, partial application, pattern matching,
-;; and placeholder substitution utilities that make Emacs Lisp more expressive
-;; and closer to modern functional programming languages.
-;; 
+;; arrow-syntax lambdas, and placeholder substitution utilities that make
+;; Emacs Lisp more expressive and closer to modern functional programming
+;; languages.
+;;
 ;; Key features:
 ;; - Automatic currying with `ldef'
 ;; - Pattern matching with `ldef'
 ;; - Type matching with `ldef'
+;; - Arrow-syntax lambdas: `l' (anonymous) and `li' (interactive)
 ;; - Partial application with `lpartial'
 ;; - Placeholder substitution with `__'
-;; - Custom syntax `with-l'
-;; - Optional syntax transformation via `l-syntax'
+;; - Curried-call syntax via `with-l'
+;; - Attach docstrings to `ldef' functions with `@doc'
+;; - Check whether a symbol is an `ldef' with `ldefp'
+;; - Optional buffer-wide syntax transformation via `l-syntax'
 ;;
 ;; Example usage:
 ;;
@@ -50,6 +54,10 @@
 ;;   (ldef greet name -> (concat "Hi, " name "!"))
 ;;   (greet "Alice") ; => "Hello, Alice!"
 ;;   (greet "Bob")   ; => "Hi, Bob!"
+;;
+;;   (mapcar (l x -> (* x 2)) '(1 2 3)) ; => (2 4 6)
+;;
+;;   (global-set-key (kbd "C-c h") (li -> (message "hi")))
 ;;
 ;;   (with-l
 ;;     ((add3 1) 2 3)) ; => 6
@@ -69,6 +77,37 @@
   :group 'lisp
   :prefix "l-"
   :link '(url-link "https://github.com/viglioni/l-el"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Macro-expansion-time helpers ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmacro l--with-arrow (arrow-expr &rest body)
+  "Bind ARROW-POS, ARROW-EXPR-ARGS, and ARROW-EXPR-BODY around BODY.
+
+Splits ARROW-EXPR (which must evaluate to a list at runtime) around the
+symbol `->':
+
+  ARROW-POS        - index of `->' in the list.
+  ARROW-EXPR-ARGS  - sublist before `->'.
+  ARROW-EXPR-BODY  - sublist after `->'.
+
+BODY is spliced into the expansion with those bindings in scope.
+
+Signals `l-invalid-syntax-error' if `->' is absent.
+
+ARROW-EXPR must be a *symbol* naming a list (typically an `&rest'
+parameter of the calling macro) or a quoted literal — never an unquoted
+list literal, which would be evaluated as a function call.
+
+Used by `l' and `ldef' to parse arrow-syntax argument lists."
+  (declare (indent defun))
+  `(let* ((arrow-pos (or (cl-position '-> ,arrow-expr)
+                         (signal 'l-invalid-syntax-error
+                                 (list "Expected `->' separator in expression"))))
+          (arrow-expr-args (cl-subseq ,arrow-expr 0 arrow-pos))
+          (arrow-expr-body (cl-subseq ,arrow-expr (1+ arrow-pos))))
+     ,@body))
 
 ;;;;;;;;;
 ;; API ;;
@@ -152,21 +191,16 @@ MANAGING IMPLEMENTATIONS:
 NAME is the function name to define.
 ARGS-AND-BODY contains arguments, ->, and body expressions."
 
-  ;; Find the -> separator
-  (let ((arrow-pos (cl-position '-> args-and-body)))
-    (unless arrow-pos
-      (error "ldef requires -> separator between arguments and body"))
-
-    (let ((args (cl-subseq args-and-body 0 arrow-pos))
-          (body (cl-subseq args-and-body (1+ arrow-pos))))
-      ;; Check for &rest in args (either directly or in nested lists)
-      (when (cl-some (lambda (arg)
-                       (or (eq arg '&rest)
-                           (and (listp arg) (memq '&rest arg))))
-                     args)
-        (signal 'l-invalid-rest-parameter-error
-                (list name "Use (param :rest) instead of &rest")))
-      `(l-generic ,name ,args ,@body))))
+  (l--with-arrow args-and-body
+    ;; Check for &rest
+    (when (cl-some (lambda (arg)
+                     (or (eq arg '&rest)
+                         (and (listp arg) (memq '&rest arg))))
+                   arrow-expr-args)
+      (signal 'l-invalid-rest-parameter-error
+              (list name "Use (param :rest) instead of &rest")))
+    
+    `(l-generic ,name ,arrow-expr-args ,@arrow-expr-body)))
 
 (defmacro with-l (&rest body)
   "Transform expressions to support curried function call syntax.
@@ -225,11 +259,39 @@ Examples:
 
 The arrow `->` must be present in the expression list, otherwise
 the macro will not work correctly."
-  (let* ((pos (cl-position '-> expr))
-         (args (cl-subseq expr 0 pos))
-         (body (cl-subseq expr (1+ pos)))
-         )
-    `(lambda ,args ,@body)))
+  (l--with-arrow expr
+    `(lambda ,arrow-expr-args ,@arrow-expr-body)))
+
+(defmacro li (&rest expr)
+  "Lambda macro for creating interactive functions with arrow syntax.
+
+Like `l', but injects `(interactive)' as the first form of the produced
+lambda so the result can be used directly as an interactive command
+(e.g. bound to a key or invoked via \\[execute-extended-command]).
+
+EXPR is a list of expressions where `->' separates the parameter list
+from the body.
+
+Syntax:
+  (li param1 param2 ... -> body-expr1 body-expr2 ...)
+
+Equivalent to:
+  (lambda (param1 param2 ...) (interactive) body-expr1 body-expr2 ...)
+
+Examples:
+  (global-set-key (kbd \"C-c h\") (li -> (message \"hi\")))
+
+  (funcall (li -> (message \"called\")))
+  ;; prints \"called\"
+
+  (li x -> (message \"got %s\" x))
+  ;; => (lambda (x) (interactive) (message \"got %s\" x))
+
+Signals `l-invalid-syntax-error' if `->' is absent.
+
+since: NEXT"
+  (l--with-arrow expr
+    `(lambda ,arrow-expr-args (interactive) ,@arrow-expr-body)))
 
 (defmacro __ (block &optional arg)
   "Substitute all occurrences of \\=`__\\=' in BLOCK with ARG.

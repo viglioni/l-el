@@ -200,7 +200,7 @@ Returns t if ELEMENT matches TYPE, nil otherwise."
       (let ((predicate (cdr (assoc type l-generic-type-predicates))))
         (if predicate
             (funcall predicate element)
-          (error "Unknown type keyword: %s" type)))
+          (l--raise-unknown-type-predicate type "type dispatch")))
     ;; Type is not a keyword - use cl-typep for struct/class types
     (cl-typep element type)))
 

@@ -40,13 +40,15 @@
 (define-error 'l-error "l.el error")
 
 ;; Define specific error types as children of l-error
-(define-error 'l-pattern-match-error "Pattern match error" 'l-error)
-(define-error 'l-type-mismatch-error "Type mismatch in pattern matching" 'l-error)
-(define-error 'l-arity-error "Wrong number of arguments" 'l-error)
-(define-error 'l-unknown-type-predicate-error "Unknown type predicate" 'l-error)
-(define-error 'l-invalid-pattern-error "Invalid pattern" 'l-error)
-(define-error 'l-invalid-rest-parameter-error "Invalid :rest parameter usage" 'l-error)
-(define-error 'l-internal-error "Internal l.el error" 'l-error)
+(define-error 'l-pattern-match-error          "Pattern match error"               'l-error)
+(define-error 'l-type-mismatch-error          "Type mismatch in pattern matching" 'l-error)
+(define-error 'l-arity-error                  "Wrong number of arguments"         'l-error)
+(define-error 'l-unknown-type-predicate-error "Unknown type predicate"            'l-error)
+(define-error 'l-invalid-pattern-error        "Invalid pattern"                   'l-error)
+(define-error 'l-invalid-rest-parameter-error "Invalid :rest parameter usage"     'l-error)
+(define-error 'l-invalid-syntax-error         "Invalid l.el syntax"               'l-error)
+(define-error 'l-missing-library-error        "Required library not found"        'l-error)
+(define-error 'l-internal-error               "Internal l.el error"               'l-error)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Error raising functions ;;
