@@ -1,7 +1,7 @@
 ;;; l-load-path.el --- Load path setup for L library -*- lexical-binding: t; -*-
 
 ;; since: 0.3.0
-;; updated-at: (1.1.1)
+;; updated-at: ()
 
 ;;; Code:
 
