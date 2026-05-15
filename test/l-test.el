@@ -19,6 +19,6 @@
 
 (describe "l.el umbrella entry point"
   (it "loads and exposes the current version"
-    (expect (l-version) :to-equal "1.1.1")))
+    (expect (l-version) :to-equal "1.1.2")))
 
 ;;; l-test.el ends here.
