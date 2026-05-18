@@ -84,7 +84,12 @@ since: NEXT"
     (cond
      ((null class) nil)
      ((eieio--class-p class)
-      (mapcar #'eieio-class-name (eieio--class-precedence-list class)))
+      ;; On Emacs >= 30, EIEIO's CPL walks all the way to the
+      ;; `record' / `atom' / `t' built-in-class roots.  `eieio-class-name'
+      ;; signals on those; `cl--class-name' (the accessor on the parent
+      ;; struct shared by `eieio--class', cl-defstruct classes, and
+      ;; `built-in-class') works uniformly.
+      (mapcar #'cl--class-name (eieio--class-precedence-list class)))
      (t (l--struct-cpl-walk class)))))
 
 (defun l--struct-cpl-walk (class)

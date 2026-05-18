@@ -52,6 +52,14 @@ All notable changes to this project will be documented in this file.
   load-pipeline bypass that broke =require= chains.  Guarded with
   =(not load-in-progress)= so loads always go through the standard
   read/eval loop; interactive =M-x eval-buffer= is unaffected.
+- Class-hierarchy =ldef= dispatch no longer crashes on Emacs 30.
+  =l--class-cpl-names= mapped =eieio-class-name= over
+  =eieio--class-precedence-list=; on Emacs >= 30 the EIEIO CPL walks
+  through =record= / =atom= / =t= built-in-class roots, which
+  =eieio-class-name= rejects (~wrong-type-argument eieio--class~).
+  Switched to =cl--class-name=, the accessor on the parent struct
+  shared by =eieio--class=, =cl-defstruct= classes, and
+  =built-in-class=.
 
 ** Internal
 - Backfilled =;; since:= annotations on all top-level forms; corrected
