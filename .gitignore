@@ -3,3 +3,4 @@
 .#*
 \#*#
 .cask/*
+.claude/settings.local.json
