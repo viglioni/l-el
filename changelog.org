@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 * Unreleased
 
+** Added
+- Typeclass system =l-typeclasses=: =lsemigroup= / =lmonoid= for
+  =:string=, =:list=, =:vector=.  Operators =l<>=, =lempty=,
+  =lmappend=; predicates =lsemigroup-p=, =lmonoid-p=.
+- Class-hierarchy =ldef= dispatch: methods on EIEIO classes or
+  =cl-defstruct= types match subclass instances; the most-specific
+  class wins via runtime CPL, including under multiple inheritance.
+- Depth-aware keyword specificity: =:natural= beats =:integer= beats
+  =:number= when methods compete at the same tier.
+- =li= macro for interactive arrow-syntax lambdas.
+
+** Changed
+- Internal load-path bootstrap recurses into every directory under
+  =lib/=.
+- Refactor: =l-subtype-p= reimplemented over a centralized hierarchy
+  walk.  Behaviour unchanged.
+- Refactor: arrow parsing in =l= and =ldef= extracted to =l--with-arrow=
+  helper.  Behaviour unchanged.
+
+** Fixed
+- Errors from =l-require=, =l-syntax=, and unknown-type dispatch now
+  signal typed conditions (=l-missing-library-error=,
+  =l-invalid-syntax-error=, =l-unknown-type-predicate-error=) under
+  =l-error= instead of plain =(error ...)=, so callers can catch them.
+
+** Internal
+- Backfilled =;; since:= annotations on all top-level forms; corrected
+  =;; updated-at:= lists to drop comment-only versions.
+- CI workflow tweak silencing a warning.
+
 * 1.1.2 - 2026-05-15
 
 ** Fixed

@@ -44,7 +44,7 @@
 (defun l-generic--is-primitive-type-p (type-keyword)
   "Return t if TYPE-KEYWORD is a primitive/child type in the type hierarchy.
 
-A primitive type is one that has parent types defined in \`l-type-hierarchy'.
+A primitive type is one that has parent types defined in \`l--type-hierarchy'.
 Category/parent types are those that don't appear as keys in the hierarchy.
 
 Examples:
@@ -54,7 +54,7 @@ Examples:
   (l-generic--is-primitive-type-p :number)    ; => nil (parent type)
 
 since: 1.1.1"
-  (and (assq type-keyword l-type-hierarchy) t))
+  (and (assq type-keyword l--type-hierarchy) t))
 
 (defun l-generic--parse-pattern (pattern)
   "Parse PATTERN and return (param-name type-keyword type-arg).
@@ -329,50 +329,141 @@ since: 0.1.0"
                            (l-generic--parse-pattern pattern)
                          `(,param (nth ,i args)))))))
 
-(cl-defmethod l-generic--generate-method-clause ((method l-generic-method-spec))
-  "Generate a cond clause for METHOD.
+(defun l-generic--pattern-spec-pair (pattern arg-index)
+  "Return a 2-element list (KIND REFINEMENT-EXPR) for PATTERN at ARG-INDEX.
 
-Returns a cond clause that tests the method's pattern conditions
-and executes the method body if all conditions match.
+KIND is an integer giving the pattern's static specificity tier:
+  4 = value match, 3 = parameterized/class, 2 = primitive keyword,
+  1 = category keyword, 0 = wildcard / regular param / untyped :rest.
 
-METHOD is a struct `l-generic-method-spec' containing:
-- `arity': number of arguments (not used in generated code)
-- `body': list of expressions to execute
-- `pattern-list': list of patterns for matching
-- `specificity': numeric score (not used in generated code)
+REFINEMENT-EXPR is a Lisp expression (often a constant) used as a
+sub-rank within the same tier.  For class-typed patterns it is a
+runtime CPL lookup: the negation of the pattern class's position in
+the value's class-precedence list (lower position is more specific,
+so higher negated value is more specific).  For everything else the
+refinement is the constant 0.
 
-The generated clause has the form:
-  \((and condition1 condition2 ...)
-   (let ((param1 (nth 0 args)) (param2 (nth 1 args)) ...)
-     body...))
+Used by `l-generic--method-spec-expr' to build the per-method
+runtime specificity vector that drives `l-generic--spec-better-p'.
 
-Conditions that always return t are removed from the and expression
-for optimization.
+since: NEXT"
+  (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
+    (cond
+     ;; Typed :rest
+     ((and (eq spec :rest) type-arg) '(3 0))
+     ;; Untyped :rest
+     ((eq spec :rest) '(0 0))
+     ;; Value match (generated symbol from value-match transformation)
+     ((and (symbolp param)
+           (string-prefix-p "l--match-" (symbol-name param)))
+      '(4 0))
+     ;; (param (list TYPE)) — list-of, keep refinement flat for now
+     ((eq spec 'list) '(3 0))
+     ;; Symbol class type — runtime CPL refinement
+     ((and (symbolp spec)
+           (not (null spec))
+           (not (keywordp spec))
+           (not (eq spec t)))
+      `(3 (- (or (l--cpl-position-of (nth ,arg-index args) ',spec) 0))))
+     ;; Parameterized keyword
+     ((and (keywordp spec) type-arg)
+      (if (eq spec :instance_of)
+          `(3 (- (or (l--cpl-position-of (nth ,arg-index args) ',type-arg) 0)))
+        '(3 0)))
+     ;; Primitive keyword (key in l--type-hierarchy) — refinement is depth
+     ;; in the hierarchy, so :natural beats :integer beats :number.
+     ((and (keywordp spec) (l-generic--is-primitive-type-p spec))
+      `(2 ,(l--keyword-type-depth spec)))
+     ;; Category keyword
+     ((keywordp spec) '(1 0))
+     ;; Non-symbol literal pattern → value match
+     ((not (symbolp pattern)) '(4 0))
+     ;; Wildcard / regular param
+     (t '(0 0)))))
 
-Examples:
-  \(l-generic--generate-method-clause
-    \\='(1100 2 ((x :integer) (y :string)) (+ x (length y))))
-  ;; => ((and (integerp (nth 0 args)) (stringp (nth 1 args)))
-  ;;     (let ((x (nth 0 args)) (y (nth 1 args)))
-  ;;       (+ x (length y))))
-  
-  (l-generic--generate-method-clause
-    \\='(2 2 (x y) (list x y)))
-  ;; => (t (let ((x (nth 0 args)) (y (nth 1 args)))
-  ;;         (list x y)))
+(defun l-generic--method-spec-expr (pattern-list)
+  "Return a Lisp expression that builds the runtime specificity vector
+for PATTERN-LIST.
 
-since: 0.2.0"
-  (let* ((pattern-list (l--pattern-list method)) ;;method[]
-         (body         (l--body method)) ;; func-body
-         (bindings     (l-generic--generate-bindings pattern-list)) ;; list
+The vector is a flat list of integers — for each pattern position,
+two elements (KIND then REFINEMENT).  At dispatch time it is compared
+lexicographically by `l-generic--spec-better-p'.
+
+since: NEXT"
+  (let ((elems (cl-loop for pattern in pattern-list
+                        for i from 0
+                        append (l-generic--pattern-spec-pair pattern i))))
+    `(list ,@elems)))
+
+(defun l-generic--spec-better-p (a b)
+  "Return t if specificity vector A is strictly more specific than B.
+
+A and B are flat lists of integers laid out as KIND REFINEMENT pairs
+per pattern position.  Comparison is lexicographic, position by
+position, with higher values meaning more specific.  Nil B means \"no
+current best,\" so A is trivially better.
+
+since: NEXT"
+  (cond
+   ((null b) t)
+   (t (cl-loop for x in a
+               for y in b
+               when (/= x y)
+               return (> x y)
+               finally return nil))))
+
+(cl-defmethod l-generic--generate-method-candidate-block
+  ((method l-generic-method-spec) (i integer))
+  "Generate a `when' block that tests METHOD's pattern conditions and,
+on match, updates `best-i'/`best-spec' if METHOD's runtime specificity
+beats the current best.
+
+I is the method's index within the dispatch's `cl-case' at the end.
+The generated form references the lexical variables `args', `best-i',
+and `best-spec' which are introduced by the surrounding dispatch let.
+
+since: NEXT"
+  (let* ((pattern-list (l--pattern-list method))
          (conditions   (cl-loop for pattern in pattern-list
-                                for i from 0
+                                for ai from 0
                                 collect (l-generic--generate-pattern-condition
-                                         pattern i)))) ;; list of cond patterns
-    
-    `((and ,@(remove t conditions))  ; Remove 'always true' conditions
-      (let ,bindings
-        ,@body))))
+                                         pattern ai)))
+         (spec-expr    (l-generic--method-spec-expr pattern-list))
+         (cond-expr    (let ((trimmed (remove t conditions)))
+                         (if trimmed `(and ,@trimmed) t))))
+    `(when ,cond-expr
+       (let ((spec ,spec-expr))
+         (when (l-generic--spec-better-p spec best-spec)
+           (setq best-i ,i best-spec spec))))))
+
+(defun l-generic--generate-execute-best (name indexed-methods)
+  "Generate the final `cl-case' that runs the body of the best-matching method.
+
+INDEXED-METHODS is a list of (INDEX . METHOD) pairs.  Each case binds
+the method's pattern parameters from `args' and evaluates its body.
+The `otherwise' clause raises a `pattern-match' error.
+
+since: NEXT"
+  `(cl-case best-i
+     ,@(cl-loop
+        for (i . method) in indexed-methods
+        collect (let* ((pattern-list (l--pattern-list method))
+                       (bindings     (l-generic--generate-bindings pattern-list))
+                       (body         (l--body method)))
+                  `(,i (let ,bindings ,@body))))
+     (otherwise
+      (l-raise 'pattern-match :function-name ',name :args args))))
+
+(defun l-generic--generate-arity-branch (name methods)
+  "Generate the body of a single arity branch (let + candidate blocks + cl-case)."
+  (let ((indexed (cl-loop for m in methods
+                          for i from 0
+                          collect (cons i m))))
+    `(let ((best-i nil) (best-spec nil))
+       ,@(mapcar (lambda (im)
+                   (l-generic--generate-method-candidate-block (cdr im) (car im)))
+                 indexed)
+       ,(l-generic--generate-execute-best name indexed))))
 
 (defun l-generic--generate-dispatch-function (name methods)
   "Generate the complete dispatch function for NAME with METHODS.
@@ -430,27 +521,19 @@ since: 0.1.0"
        ,(l-generic--doc name)
        (let ((arity (length args)))
 
-         ;; Writing all methods inside defun, following the order:
-         ;;(cond
-         ;; Branch 1: Fixed-arity methods
-         ;; Branch 2: Rest methods
-         ;; Branch 3: Currying
-         ;; Branch 4: Error
-         ;; )
+         ;; Per-arity branch uses `l-generic--generate-arity-branch'
+         ;; which evaluates every candidate method's pattern condition,
+         ;; ranks matches by runtime specificity, and runs the best.
          (cond
           ;; fixed arity methods
           ,@(cl-loop for (arity . arity-methods) in arity-groups
                      when arity-methods
                      collect `((= arity ,arity)
-                               (cond
-                                ,@(mapcar #'l-generic--generate-method-clause arity-methods)
-                                (t (l-raise 'pattern-match :function-name ',name :args args)))))
+                               ,(l-generic--generate-arity-branch name arity-methods)))
           ;; Handle rest methods for args >= min-rest-arity
           ,@(when rest-methods
               `(((>= arity ,min-rest-arity)
-                 (cond
-                  ,@(mapcar #'l-generic--generate-method-clause rest-methods)
-                  (t (l-raise 'pattern-match :function-name ',name :args args))))))
+                 ,(l-generic--generate-arity-branch name rest-methods))))
           ;; Currying case - only for insufficient args
           ((< arity ,min-arity) (apply #'lpartial #',name args))
           ;; Too many args - error

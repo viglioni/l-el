@@ -42,9 +42,14 @@
 
 (context "l-generic-state.el"
   (describe "l-generic-method-registry"
+    :var (registry-snapshot)
     (before-each
-      ;; Clear registry for clean tests
+      ;; Snapshot and clear registry for clean tests
+      (setq registry-snapshot (copy-hash-table l-generic-method-registry))
       (clrhash l-generic-method-registry))
+    (after-each
+      ;; Restore registry so we don't leak state to other test files
+      (setq l-generic-method-registry registry-snapshot))
     
     (test-it "starts empty"
       (expect (hash-table-count l-generic-method-registry) :to-equal 0))
@@ -138,8 +143,12 @@
         (expect (l--specificity spec) :to-equal 100))))
 
   (describe "integration with registry"
+    :var (registry-snapshot)
     (before-each
+      (setq registry-snapshot (copy-hash-table l-generic-method-registry))
       (clrhash l-generic-method-registry))
+    (after-each
+      (setq l-generic-method-registry registry-snapshot))
     
     (test-it "can store and retrieve method specs"
       (let ((spec1 (l--method 1 '((+ x 1)) '((x :integer)) 100))

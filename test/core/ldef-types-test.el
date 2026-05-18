@@ -575,3 +575,225 @@
 
       (test-it "string matches primitive :string over category :array"
         (expect (test-array-specificity "hello") :to-equal 'matched-primitive-string))))
+
+  (describe "keyword hierarchy depth"
+    ;; Mirrors the class hierarchy tests but for keyword types declared
+    ;; in `l--type-hierarchy'.  Deeper keywords (more ancestors) win
+    ;; over shallower ones regardless of definition order.
+
+    (describe "deepest matching keyword wins (3-level chain)"
+      ;; :natural -> :integer -> :number  per `l--type-hierarchy'.
+      ;; Define :natural FIRST so the old sort path cannot fluke success.
+      (before-all
+        (ldef kw-number-depth (x :natural) -> 'level-natural)
+        (ldef kw-number-depth (x :integer) -> 'level-integer)
+        (ldef kw-number-depth (x :number)  -> 'level-number))
+
+      (test-it "positive integer dispatches to :natural (deepest match)"
+        (expect (kw-number-depth 5) :to-equal 'level-natural))
+      (test-it "zero dispatches to :integer (:natural excludes 0)"
+        (expect (kw-number-depth 0) :to-equal 'level-integer))
+      (test-it "negative integer dispatches to :integer"
+        (expect (kw-number-depth -3) :to-equal 'level-integer))
+      (test-it "float dispatches to :number (:integer rejects it)"
+        (expect (kw-number-depth 3.14) :to-equal 'level-number)))
+
+    (describe "dispatch is independent of definition order"
+      ;; Same three methods, reverse definition order.
+      (before-all
+        (ldef kw-number-depth-rev (x :number)  -> 'level-number)
+        (ldef kw-number-depth-rev (x :integer) -> 'level-integer)
+        (ldef kw-number-depth-rev (x :natural) -> 'level-natural))
+
+      (test-it "positive integer still dispatches to :natural"
+        (expect (kw-number-depth-rev 5) :to-equal 'level-natural))
+      (test-it "zero still dispatches to :integer"
+        (expect (kw-number-depth-rev 0) :to-equal 'level-integer))
+      (test-it "float still dispatches to :number"
+        (expect (kw-number-depth-rev 3.14) :to-equal 'level-number)))
+
+    (describe "subtype falls through when no own method exists"
+      (before-all
+        (ldef kw-fallthrough (x :integer) -> 'is-integer)
+        (ldef kw-fallthrough _ -> 'other))
+
+      (test-it "positive integer matches :integer (no :natural method)"
+        (expect (kw-fallthrough 5) :to-equal 'is-integer))
+      (test-it "zero matches :integer"
+        (expect (kw-fallthrough 0) :to-equal 'is-integer))
+      (test-it "float does not match :integer"
+        (expect (kw-fallthrough 3.14) :to-equal 'other))))
+
+  (describe "class hierarchy dispatch"
+    ;; Hierarchy used by all tests in this block:
+    ;;
+    ;;   food
+    ;;   |-- fruit
+    ;;   |   |-- apple
+    ;;   |   |   `-- fuji     ; 4 levels deep
+    ;;   |   `-- grape        ; sibling of apple
+    ;;   `-- grain
+    ;;       `-- wheat        ; different branch from fruit
+    (before-all
+      (defclass food  ()       ())
+      (defclass fruit (food)   ())
+      (defclass grain (food)   ())
+      (defclass apple (fruit)  ())
+      (defclass grape (fruit)  ())
+      (defclass fuji  (apple)  ())
+      (defclass wheat (grain)  ()))
+
+    (describe "parent-typed method matches subclass instances"
+      (before-all
+        (ldef class-parent-match (x fruit) -> 'is-fruit)
+        (ldef class-parent-match _ -> 'other))
+
+      (test-it "apple instance matches fruit method"
+        (expect (class-parent-match (make-instance 'apple)) :to-equal 'is-fruit))
+      (test-it "grape instance (sibling of apple) matches fruit method"
+        (expect (class-parent-match (make-instance 'grape)) :to-equal 'is-fruit))
+      (test-it "fuji instance (grandchild of fruit) matches fruit method"
+        (expect (class-parent-match (make-instance 'fuji)) :to-equal 'is-fruit))
+      (test-it "wheat instance (different branch) does not match"
+        (expect (class-parent-match (make-instance 'wheat)) :to-equal 'other))
+      (test-it "food instance (parent of fruit) does not match"
+        (expect (class-parent-match (make-instance 'food)) :to-equal 'other)))
+
+    (describe "siblings do not match each other"
+      (before-all
+        (ldef class-siblings (x apple) -> 'is-apple)
+        (ldef class-siblings (x grape) -> 'is-grape)
+        (ldef class-siblings _ -> 'other))
+
+      (test-it "apple instance matches apple method"
+        (expect (class-siblings (make-instance 'apple)) :to-equal 'is-apple))
+      (test-it "grape instance matches grape method"
+        (expect (class-siblings (make-instance 'grape)) :to-equal 'is-grape))
+      (test-it "fuji instance (apple subclass) matches apple, not grape"
+        (expect (class-siblings (make-instance 'fuji)) :to-equal 'is-apple))
+      (test-it "fruit instance (parent of both) matches neither sibling"
+        (expect (class-siblings (make-instance 'fruit)) :to-equal 'other)))
+
+    (describe "most-specific ancestor wins across multiple levels"
+      ;; Methods at three levels. apple is defined FIRST so the buggy
+      ;; sort-stability path cannot fluke success.
+      (before-all
+        (ldef class-depth (x apple) -> 'level-apple)
+        (ldef class-depth (x fruit) -> 'level-fruit)
+        (ldef class-depth (x food)  -> 'level-food))
+
+      (test-it "fuji dispatches to apple (closest ancestor with a method)"
+        (expect (class-depth (make-instance 'fuji)) :to-equal 'level-apple))
+      (test-it "apple dispatches to apple (exact)"
+        (expect (class-depth (make-instance 'apple)) :to-equal 'level-apple))
+      (test-it "grape dispatches to fruit (no apple match, falls to fruit)"
+        (expect (class-depth (make-instance 'grape)) :to-equal 'level-fruit))
+      (test-it "fruit dispatches to fruit (exact)"
+        (expect (class-depth (make-instance 'fruit)) :to-equal 'level-fruit))
+      (test-it "wheat dispatches to food (other branch, falls to food)"
+        (expect (class-depth (make-instance 'wheat)) :to-equal 'level-food))
+      (test-it "food dispatches to food (exact)"
+        (expect (class-depth (make-instance 'food)) :to-equal 'level-food)))
+
+    (describe "dispatch is independent of method definition order"
+      ;; Same three methods as `class-depth' above, defined in reverse order.
+      (before-all
+        (ldef class-depth-rev (x food)  -> 'level-food)
+        (ldef class-depth-rev (x fruit) -> 'level-fruit)
+        (ldef class-depth-rev (x apple) -> 'level-apple))
+
+      (test-it "fuji still dispatches to apple"
+        (expect (class-depth-rev (make-instance 'fuji)) :to-equal 'level-apple))
+      (test-it "grape still dispatches to fruit"
+        (expect (class-depth-rev (make-instance 'grape)) :to-equal 'level-fruit))
+      (test-it "wheat still dispatches to food"
+        (expect (class-depth-rev (make-instance 'wheat)) :to-equal 'level-food)))
+
+    (describe "multi-argument class dispatch"
+      (before-all
+        (ldef class-pair (x apple) (y grape) -> 'apple-grape)
+        (ldef class-pair (x fruit) (y fruit) -> 'fruit-fruit)
+        (ldef class-pair _ _ -> 'other))
+
+      (test-it "(apple, grape) dispatches to apple-grape (most specific)"
+        (expect (class-pair (make-instance 'apple) (make-instance 'grape))
+                :to-equal 'apple-grape))
+      (test-it "(apple, apple) falls back to fruit-fruit (apple is not grape)"
+        (expect (class-pair (make-instance 'apple) (make-instance 'apple))
+                :to-equal 'fruit-fruit))
+      (test-it "(fuji, grape) dispatches to apple-grape (fuji is-a apple)"
+        (expect (class-pair (make-instance 'fuji) (make-instance 'grape))
+                :to-equal 'apple-grape))
+      (test-it "(wheat, grape) falls through to catch-all (wheat is not fruit)"
+        (expect (class-pair (make-instance 'wheat) (make-instance 'grape))
+                :to-equal 'other)))
+
+    (describe "diamond inheritance (multiple parents)"
+      ;; Standalone hierarchy for diamond tests — names prefixed `dia-'
+      ;; to avoid colliding with the single-inheritance hierarchy above.
+      ;;
+      ;;        dia-food
+      ;;       /        \
+      ;;   dia-fruit  dia-sweet
+      ;;       \        /
+      ;;    dia-candy-apple        ; inherits both, diamond via dia-food
+      ;;
+      ;; C3 CPL for dia-candy-apple:
+      ;;   (dia-candy-apple dia-fruit dia-sweet dia-food ... default)
+      ;; — dia-fruit comes before dia-sweet because it is listed first
+      ;; in the defclass parent list.
+      (before-all
+        (defclass dia-food  ()                       ())
+        (defclass dia-fruit (dia-food)               ())
+        (defclass dia-sweet (dia-food)               ())
+        (defclass dia-candy-apple (dia-fruit dia-sweet) ()))
+
+      (describe "method on either single parent matches the child"
+        (before-all
+          (ldef dia-fruit-only (x dia-fruit) -> 'is-fruit)
+          (ldef dia-fruit-only _ -> 'other)
+          (ldef dia-sweet-only (x dia-sweet) -> 'is-sweet)
+          (ldef dia-sweet-only _ -> 'other))
+
+        (test-it "candy-apple matches a dia-fruit method (one parent)"
+          (expect (dia-fruit-only (make-instance 'dia-candy-apple))
+                  :to-equal 'is-fruit))
+        (test-it "candy-apple matches a dia-sweet method (other parent)"
+          (expect (dia-sweet-only (make-instance 'dia-candy-apple))
+                  :to-equal 'is-sweet)))
+
+      (describe "method on the diamond root matches the child"
+        (before-all
+          (ldef dia-grand (x dia-food) -> 'is-food)
+          (ldef dia-grand _ -> 'other))
+
+        (test-it "candy-apple matches a dia-food method (shared ancestor)"
+          (expect (dia-grand (make-instance 'dia-candy-apple))
+                  :to-equal 'is-food)))
+
+      (describe "exact class method wins over any parent method"
+        (before-all
+          (ldef dia-self (x dia-candy-apple) -> 'is-candy-apple)
+          (ldef dia-self (x dia-fruit)       -> 'is-fruit)
+          (ldef dia-self (x dia-sweet)       -> 'is-sweet))
+
+        (test-it "candy-apple dispatches to its own method"
+          (expect (dia-self (make-instance 'dia-candy-apple))
+                  :to-equal 'is-candy-apple)))
+
+      (describe "between two parent methods, MRO (defclass parent order) wins"
+        ;; CPL places dia-fruit before dia-sweet, so a dia-fruit method
+        ;; wins over a dia-sweet method for a dia-candy-apple instance.
+        (before-all
+          (ldef dia-tie (x dia-fruit) -> 'is-fruit)
+          (ldef dia-tie (x dia-sweet) -> 'is-sweet))
+
+        (test-it "candy-apple resolves to dia-fruit (listed first in parents)"
+          (expect (dia-tie (make-instance 'dia-candy-apple))
+                  :to-equal 'is-fruit))
+        (test-it "a plain dia-sweet instance still resolves to dia-sweet"
+          (expect (dia-tie (make-instance 'dia-sweet))
+                  :to-equal 'is-sweet))
+        (test-it "a plain dia-fruit instance still resolves to dia-fruit"
+          (expect (dia-tie (make-instance 'dia-fruit))
+                  :to-equal 'is-fruit)))))

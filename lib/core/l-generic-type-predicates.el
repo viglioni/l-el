@@ -70,6 +70,47 @@ since: 0.5.0"
   (or (cl-struct-p obj)
       (eieio-object-p obj)))
 
+(defun l--class-cpl-names (class-symbol)
+  "Return CLASS-SYMBOL's class precedence list as a list of name symbols.
+
+Most-specific-first.  Works for EIEIO classes (using C3 linearization
+via `eieio--class-precedence-list') and for cl-defstruct types (walking
+the single-inheritance chain through `:include').  Returns nil if
+CLASS-SYMBOL has no class metadata (built-in types like `integer'
+have no class object accessible via `cl-find-class').
+
+since: NEXT"
+  (let ((class (cl-find-class class-symbol)))
+    (cond
+     ((null class) nil)
+     ((eieio--class-p class)
+      (mapcar #'eieio-class-name (eieio--class-precedence-list class)))
+     (t (l--struct-cpl-walk class)))))
+
+(defun l--struct-cpl-walk (class)
+  "Recursively walk CLASS and its `cl--class-parents' chain.
+Return a flat list of class name symbols, most-specific first.
+
+since: NEXT"
+  (when class
+    (cons (cl--class-name class)
+          (cl-mapcan #'l--struct-cpl-walk (cl--class-parents class)))))
+
+(defun l--cpl-position-of (value class-symbol)
+  "Return position of CLASS-SYMBOL in VALUE's class precedence list.
+
+Returns the integer index (0 = most specific) of CLASS-SYMBOL in the
+class-precedence list of VALUE's class.  Returns nil if VALUE has no
+class metadata or if CLASS-SYMBOL is not an ancestor.
+
+Used by `ldef' dispatch to resolve specificity between class-typed
+methods at runtime, including under multiple inheritance.
+
+since: NEXT"
+  (let ((cpl (l--class-cpl-names (type-of value))))
+    (when cpl
+      (cl-position class-symbol cpl))))
+
 (defun l--list-of-p (obj type-or-keyword)
   "Return t if OBJ is a list where every element matches TYPE-OR-KEYWORD.
 
@@ -116,7 +157,7 @@ since: 0.5.0"
 ;; Type Hierarchy   ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar l-type-hierarchy
+(defvar l--type-hierarchy
   '(;; Sequence types
     (:list        . (:sequence))
     (:vector      . (:sequence :array))
@@ -149,9 +190,10 @@ since: 0.5.0"
 Each entry is (CHILD . (PARENT1 PARENT2 ...)) where CHILD is a specific
 type and PARENT1, PARENT2, etc. are more general types that include CHILD.
 
-This hierarchy is used to determine subtype relationships for pattern
-matching and typeclass instances. For example, since :list has :sequence
-as a parent, any function that accepts :sequence will also accept :list.
+This hierarchy drives subtype relationships for `ldef' dispatch and
+typeclass instances.  For example, since :list has :sequence as a
+parent, a method declared for :sequence also matches a list, and the
+deeper-in-hierarchy method wins when both are defined.
 
 The hierarchy follows these principles:
 - Primitive types (e.g., :list, :integer) are children of category types
@@ -160,13 +202,56 @@ The hierarchy follows these principles:
 - Aliases resolve to their canonical types with their full parent chain
 
 Examples:
-  :list → :sequence (lists are sequences)
-  :vector → :sequence, :array (vectors are both sequences and arrays)
-  :integer → :number (integers are numbers)
-  :natural → :integer, :number (natural numbers are integers and numbers)
-  :str → :string, :sequence, :array (alias with full parent chain)
+  :list -> :sequence (lists are sequences)
+  :vector -> :sequence, :array (vectors are both sequences and arrays)
+  :integer -> :number (integers are numbers)
+  :natural -> :integer, :number (natural numbers are integers and numbers)
+  :str -> :string, :sequence, :array (alias with full parent chain)
+
+Internal: not a stable public API — the shape and contents of this
+table may change between releases.
 
 since: 1.1.1")
+
+(defun l--type-hierarchy-some (type-keyword pred)
+  "Return non-nil if PRED is satisfied by some ancestor of TYPE-KEYWORD.
+
+Walks TYPE-KEYWORD's parents in `l--type-hierarchy' recursively and
+returns the first non-nil value PRED produces.  TYPE-KEYWORD itself
+is NOT tested by PRED — this lets PRED be a generic function whose
+catch-all calls back into this primitive without infinite recursion.
+
+PRED is a function or symbol naming a function, called with one
+keyword argument.
+
+Used by typeclass predicates such as `lsemigroup-p' and `lfunctorp'
+to answer \"is this type an instance, transitively, via its parents?\"
+
+since: NEXT"
+  (when (keywordp type-keyword)
+    (let ((parents (cdr (assq type-keyword l--type-hierarchy))))
+      (cl-some (lambda (p)
+                 (or (funcall pred p)
+                     (l--type-hierarchy-some p pred)))
+               parents))))
+
+(defun l--keyword-type-depth (keyword)
+  "Return the depth of KEYWORD in `l--type-hierarchy'.
+
+Depth is defined recursively:
+  - 0 if KEYWORD is a category (not present as a key in the hierarchy).
+  - 1 + max(depth of parents) otherwise.
+
+So `:number' is depth 0 (category), `:integer' is depth 1 (one step
+from :number), and `:natural' is depth 2 (two steps from :number via
+:integer).  Used as a sub-rank within the primitive-keyword tier so
+deeper keywords win specificity ties against shallower ones.
+
+since: NEXT"
+  (let ((parents (cdr (assq keyword l--type-hierarchy))))
+    (if (null parents)
+        0
+      (1+ (apply #'max (mapcar #'l--keyword-type-depth parents))))))
 
 (defun l-subtype-p (child parent)
   "Check if CHILD type is a subtype of PARENT type.
@@ -180,7 +265,7 @@ Both CHILD and PARENT should be type keywords (e.g., :list, :sequence).
 
 Examples:
   (l-subtype-p :list :sequence)    ; => t (direct parent)
-  (l-subtype-p :natural :number)   ; => t (transitive: :natural → :integer → :number)
+  (l-subtype-p :natural :number)   ; => t (transitive: :natural -> :integer -> :number)
   (l-subtype-p :list :list)        ; => t (identical)
   (l-subtype-p :list :integer)     ; => nil (unrelated types)
   (l-subtype-p :vector :sequence)  ; => t (vector is a sequence)
@@ -188,11 +273,7 @@ Examples:
 
 since: 1.1.1"
   (or (eq child parent)
-      (let ((parents (cdr (assq child l-type-hierarchy))))
-        (and parents
-             (or (memq parent parents)
-                 ;; Transitive check - check if any parent is a subtype of target
-                 (cl-some (lambda (p) (l-subtype-p p parent)) parents))))))
+      (l--type-hierarchy-some child (lambda (kw) (eq kw parent)))))
 
 (defun l-instanceof (element type)
   "Check if ELEMENT is an instance of TYPE.

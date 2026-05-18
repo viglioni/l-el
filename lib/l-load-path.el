@@ -5,7 +5,7 @@
 
 ;;; Code:
 
-(defun l-setup-load-path ()
+(defun l--setup-load-path ()
   "Setup load-path for L library.
 
 since: 0.3.0"
@@ -20,16 +20,28 @@ since: 0.3.0"
     (when lib-dir
       ;; Add project root
       (add-to-list 'load-path lib-dir)
-      
-      ;; Add all lib subdirectories
+
+      ;; Recursively add every directory under lib/ so files can be
+      ;; located by basename regardless of how deep they sit.  Without
+      ;; recursion, only direct children of lib/ (e.g. lib/utilities)
+      ;; were on `load-path', which left lib/utilities/l-typeclasses/
+      ;; unfindable from a plain interactive session.
       (let ((lib-base-dir (expand-file-name "lib" lib-dir)))
         (when (file-directory-p lib-base-dir)
-          (dolist (subdir (directory-files lib-base-dir t "^[^.]"))
-            (when (file-directory-p subdir)
-              (add-to-list 'load-path subdir))))))))
+          (l--add-subdirs-recursively lib-base-dir))))))
+
+(defun l--add-subdirs-recursively (dir)
+  "Add DIR and all its descendant directories to `load-path'.
+Skips hidden entries (those starting with `.').
+
+since: NEXT"
+  (add-to-list 'load-path dir)
+  (dolist (entry (directory-files dir t "^[^.]"))
+    (when (file-directory-p entry)
+      (l--add-subdirs-recursively entry))))
 
 ;; Setup load-path when this file is loaded
-(l-setup-load-path)
+(l--setup-load-path)
 
 (provide 'l-load-path)
 ;;; l-load-path.el ends here

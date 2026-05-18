@@ -181,6 +181,7 @@
 
 ;; utilities
 (l-require 'l-function)
+(l-require 'l-typeclasses)
 
 (defun l-version ()
   "Return the current version of l.el.
