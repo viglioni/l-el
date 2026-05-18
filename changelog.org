@@ -22,12 +22,36 @@ All notable changes to this project will be documented in this file.
   walk.  Behaviour unchanged.
 - Refactor: arrow parsing in =l= and =ldef= extracted to =l--with-arrow=
   helper.  Behaviour unchanged.
+- =load= no longer honours an end-of-file ~;; Local Variables:
+  l-syntax: t~ form when deciding whether to apply the syntax
+  transformation; only the prop-line (~-*- l-syntax: t -*-~) is
+  considered for files loaded from disk.  Eval-side advices
+  (=eval-buffer=, =eval-region=, =eval-last-sexp=) still honour both.
+- Documented in the =l-syntax= defcustom that files declaring
+  =l-syntax: t= must be loaded from source; =load-read-function= is
+  not consulted for =.elc=.
 
 ** Fixed
 - Errors from =l-require=, =l-syntax=, and unknown-type dispatch now
   signal typed conditions (=l-missing-library-error=,
   =l-invalid-syntax-error=, =l-unknown-type-predicate-error=) under
   =l-error= instead of plain =(error ...)=, so callers can catch them.
+- l-syntax load no longer bypasses emacs's load pipeline.  Files used
+  to be read whole, wrapped once in =with-l=, and =eval='d, which
+  broke =features-being-required= (manifesting as ~Recursive 'require'
+  for feature 'magit'~ under =use-package=), =load-history=,
+  =load-file-name=, =current-load-list=, and =after-load-functions=.
+  The =load= advice and =l-require= now install a =load-read-function=
+  that transforms each top-level form and delegate to the real
+  =load=, so the full pipeline runs unchanged.
+- =eval-buffer= advice no longer fires when called from inside
+  =load= (=load-with-code-conversion= invokes =eval-buffer=
+  internally).  Previously the advice would read =current-buffer=
+  (the user's outer buffer, not the file's load buffer), wrap that
+  content in =with-l= and =eval= it -- producing the very
+  load-pipeline bypass that broke =require= chains.  Guarded with
+  =(not load-in-progress)= so loads always go through the standard
+  read/eval loop; interactive =M-x eval-buffer= is unaffected.
 
 ** Internal
 - Backfilled =;; since:= annotations on all top-level forms; corrected

@@ -424,3 +424,124 @@
                        (eval-buffer nil)
                        (expect (string-match-p "Adds two numbers"
                                                (documentation 'add-doc)))))))))))
+
+(describe "l-syntax.el load-pipeline integration"
+  (before-all
+    (ldef add a b -> (+ a b))
+    (l-syntax-advices))
+  (after-all
+    (l-syntax-remove-advices))
+
+  (describe "load-history"
+    (test-it "records the loaded file"
+      (let ((temp-file (make-temp-file "l-history-test" nil ".el"))
+            (l-syntax t))
+        (unwind-protect
+            (progn
+              (with-temp-file temp-file
+                (insert "(defvar l-history-test-var ((add 1) 2))\n"))
+              (load temp-file)
+              (expect (cl-some (lambda (entry)
+                                 (and (stringp (car entry))
+                                      (string-suffix-p
+                                       (file-name-nondirectory temp-file)
+                                       (car entry))))
+                               load-history)
+                      :to-be-truthy))
+          (delete-file temp-file)
+          (when (boundp 'l-history-test-var)
+            (makunbound 'l-history-test-var))))))
+
+  (describe "load-file-name"
+    (test-it "is bound during file evaluation"
+      (let ((temp-file (make-temp-file "l-lfn-test" nil ".el"))
+            (l-syntax t))
+        (unwind-protect
+            (progn
+              (with-temp-file temp-file
+                (insert "(setq l-lfn-captured load-file-name)\n"))
+              (load temp-file)
+              (expect (boundp 'l-lfn-captured) :to-be-truthy)
+              (expect l-lfn-captured :to-be-truthy)
+              (expect (string-suffix-p ".el" l-lfn-captured) :to-be-truthy))
+          (delete-file temp-file)
+          (when (boundp 'l-lfn-captured)
+            (makunbound 'l-lfn-captured))))))
+
+  (describe "features tracking during load"
+    (test-it "(require X) inside an l-syntax-loaded file sees provides from features"
+      ;; Exercises the load pipeline that the old `l-syntax--load' bypass
+      ;; broke: `provide' must update `features' early enough that a sibling
+      ;; `(require X)' in the same chain is a no-op rather than re-loading
+      ;; the file.  Files A and B mutually `require' each other; both
+      ;; `provide' first, so the second `require' in each finds the feature
+      ;; already in `features' and returns immediately.
+      (let* ((temp-dir (file-name-as-directory
+                        (make-temp-file "l-features-test" t)))
+             (a-file (expand-file-name "l-features-a.el" temp-dir))
+             (b-file (expand-file-name "l-features-b.el" temp-dir))
+             (load-path (cons temp-dir load-path))
+             (l-syntax t))
+        (unwind-protect
+            (progn
+              (with-temp-file a-file
+                (insert "(provide 'l-features-a)\n"
+                        "(require 'l-features-b)\n"))
+              (with-temp-file b-file
+                (insert "(provide 'l-features-b)\n"
+                        "(require 'l-features-a)\n"))
+              (expect (require 'l-features-a) :to-equal 'l-features-a)
+              (expect (featurep 'l-features-a) :to-be-truthy)
+              (expect (featurep 'l-features-b) :to-be-truthy))
+          (delete-directory temp-dir t)
+          (setq features (delq 'l-features-a features))
+          (setq features (delq 'l-features-b features))))))
+
+  (describe "after-load-functions"
+    (test-it "fires for l-syntax-loaded files"
+      (let* ((temp-file (make-temp-file "l-after-load-test" nil ".el"))
+             (l-syntax t)
+             (fired-file nil)
+             (hook (lambda (f) (setq fired-file f))))
+        (unwind-protect
+            (progn
+              (with-temp-file temp-file
+                (insert "(defvar l-after-load-marker t)\n"))
+              (add-hook 'after-load-functions hook)
+              (load temp-file)
+              (expect fired-file :to-be-truthy)
+              (expect (string-suffix-p (file-name-nondirectory temp-file)
+                                       fired-file)
+                      :to-be-truthy))
+          (remove-hook 'after-load-functions hook)
+          (delete-file temp-file)
+          (when (boundp 'l-after-load-marker)
+            (makunbound 'l-after-load-marker))))))
+
+  (describe "@doc grouping with intervening form"
+    (test-it "groups each @doc with the next form, leaving others untouched"
+      (let ((temp-file (make-temp-file "l-doc-intervene-test" nil ".el"))
+            (l-syntax t))
+        (unwind-protect
+            (progn
+              (with-temp-file temp-file
+                (insert "@doc \"First doc\"\n"
+                        "(ldef l-intervene-first a -> a)\n"
+                        "(setq l-intervene-marker 'middle)\n"
+                        "@doc \"Second doc\"\n"
+                        "(ldef l-intervene-second b -> b)\n"))
+              (load temp-file)
+              (expect (string-match-p "First doc"
+                                      (documentation 'l-intervene-first))
+                      :to-be-truthy)
+              (expect l-intervene-marker :to-equal 'middle)
+              (expect (string-match-p "Second doc"
+                                      (documentation 'l-intervene-second))
+                      :to-be-truthy))
+          (delete-file temp-file)
+          (when (boundp 'l-intervene-marker)
+            (makunbound 'l-intervene-marker))
+          (when (fboundp 'l-intervene-first)
+            (fmakunbound 'l-intervene-first))
+          (when (fboundp 'l-intervene-second)
+            (fmakunbound 'l-intervene-second)))))))

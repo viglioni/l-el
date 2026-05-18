@@ -56,12 +56,27 @@
 ;; The advice functions preserve the original behavior and output formatting
 ;; of the intercepted functions while transparently applying l-syntax
 ;; transformations when appropriate.
+;;
+;; Byte-compilation note: files with `l-syntax: t' must be loaded from
+;; source.  The load-time transformation runs through
+;; `load-read-function', which is not consulted when loading `.elc'
+;; files.  Do not byte-compile files that rely on l-syntax.
 
 ;;; Code:
 
 (require 'l-main)
 (require 'l-mode)
 (require 'l-exception)
+(defvar l--syntax-loading nil
+  "Non-nil while `l--load-file-advice' is delegating to the real `load'.
+Guards the advice against re-entering itself when the loaded file (or
+its transitive loads) triggers another `load' call, and prevents the
+eval advices (`l--eval-last-sexp-advice', `l--eval-region-advice',
+`l--eval-buffer-advice') from re-applying the transformation when
+`load' calls them internally via `load-with-code-conversion'.
+
+since: NEXT")
+
 (defcustom l-syntax nil
   "Controls whether l syntax transformations are applied during evaluation.
 
@@ -88,6 +103,11 @@ functions are installed via `l-syntax-advices'.
 Setting this to t globally allows you to use l syntax everywhere
 without adding file-local variable declarations to each file, while
 setting it to nil provides more granular control on a per-file basis.
+
+Note: l-syntax files must be loaded from source.  The load advice
+applies its transformation via `load-read-function', which is not
+consulted for `.elc' files.  Do not byte-compile files that declare
+`-*- l-syntax: t -*-'.
 
 since: 0.3.0"
   :type 'boolean
@@ -126,9 +146,13 @@ since: 0.2.0"
 
 
 (defun l-require (feature &optional filename noerror)
-  "Load FEATURE using l-syntax transformations when the file declares it.
-This function loads a library and automatically applies l-syntax processing
-if the file contains the l-syntax file-local variable declaration.
+  "Load FEATURE with l-syntax transformations applied.
+Resolves FEATURE via `locate-library' (or uses FILENAME if given),
+installs the syntax-aware `load-read-function' for the duration of
+the load, then delegates to standard `load' so the full load pipeline
+(features tracking, `load-history', `load-file-name',
+`after-load-functions') runs unchanged.  Works whether or not
+`l-syntax-advices' has been installed.
 
 FEATURE is the library name symbol to load.
 FILENAME is optional - if provided, load this file instead of searching.
@@ -138,17 +162,15 @@ Returns FEATURE if successful, nil if NOERROR is non-nil and loading failed.
 
 since: 0.3.0"
   (let* ((feature-name (symbol-name feature))
-         (file-to-load (or filename
-                           (locate-library feature-name)))
-         (l-syntax t))
-    (if file-to-load
-        (progn
-          ;; Use load instead of require - this triggers our advice
-          (l-syntax--load file-to-load)
-          feature)
-      (if noerror
-          nil
-        (signal 'l-missing-library-error (list feature-name))))))
+         (file-to-load (or filename (locate-library feature-name))))
+    (cond
+     (file-to-load
+      (let ((l--syntax-loading t)
+            (load-read-function (l--make-syntax-reader)))
+        (load file-to-load noerror))
+      feature)
+     (noerror nil)
+     (t (signal 'l-missing-library-error (list feature-name))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Use l syntax without `with-l' ;;
@@ -193,7 +215,7 @@ Uses &rest ARGS to handle all possible argument combinations.
 ORIG-FUN is `eval-last-sexp'.
 
 since: 0.2.0"
-  (if (l--should-use-l-syntax-p)
+  (if (and (l--should-use-l-syntax-p) (not l--syntax-loading))
       ;; l-syntax is enabled - evaluate the wrapped sexp directly
       (let* ((sexp (elisp--preceding-sexp))
              (processed-sexp (l--process-sexp-for-doc sexp))
@@ -227,7 +249,7 @@ START and END are the region start and end point.
 ARGS are additional arguments passed to load.
 
 since: 0.2.0"
-  (if (l--should-use-l-syntax-p)
+  (if (and (l--should-use-l-syntax-p) (not l--syntax-loading))
       ;; l-syntax is enabled - wrap entire region in with-l
       (let* ((region-content (buffer-substring-no-properties start end))
              (grouped-content (l--group-doc-in-content region-content)))
@@ -241,7 +263,9 @@ ORIG-FUN is the original load function.
 ARGS are additional arguments passed to load.
 
 since: 0.2.0"
-  (if (l--should-use-l-syntax-p)
+  (if (and (l--should-use-l-syntax-p)
+           (not l--syntax-loading)
+           (not load-in-progress))
       ;; l-syntax is enabled - wrap entire buffer in with-l
       (let* ((buffer-content (buffer-substring-no-properties (point-min) (point-max)))
              (grouped-content (l--group-doc-in-content buffer-content)))
@@ -249,36 +273,75 @@ since: 0.2.0"
     ;; l-syntax not enabled - use original function
     (apply orig-fun args)))
 
-(defun l-syntax--load (filename)
-  "Load FILENAME with l-syntax processing enabled.
-Only processe
-s .el files, returns nil for other files.
-This is the core loading logic used by both advice and l-require.
+(defun l--file-wants-l-syntax-p (filename)
+  "Return non-nil if FILENAME should be loaded with l-syntax transformations.
+Checks the dynamic value of `l-syntax' first (which `l-require'
+let-binds to t), then scans the first ~1 KB of FILENAME for a
+`-*- l-syntax: t -*-' prop-line.  End-of-file `;; Local Variables:'
+forms are not honoured at load time.
 
-since: 0.3.0"
-  (when (and (file-exists-p filename) (string-suffix-p ".el" filename))
-    (with-temp-buffer
-      (insert-file-contents filename)
-      (when (l--should-use-l-syntax-p)
-        ;; l-syntax enabled - wrap and evaluate
-        (let* ((file-content (buffer-string))
-               (grouped-content (l--group-doc-in-content file-content)))
-          (eval (read (format "(with-l %s)" grouped-content)))
-          t)))))
+since: NEXT"
+  (and (file-exists-p filename)
+       (string-suffix-p ".el" filename)
+       (or (and (boundp 'l-syntax) l-syntax)
+           (with-temp-buffer
+             (insert-file-contents filename nil 0 1024)
+             (goto-char (point-min))
+             (and (looking-at "^.*-\\*-.*l-syntax:[ \t]*t.*-\\*-") t)))))
+
+(defun l--syntax-prepare-form (form)
+  "Apply the l-syntax transformations to FORM and return the result.
+The form is `macroexpand-all'-ed and then run through
+`l--transform-curry-calls', matching what `with-l' does per body
+form.
+
+since: NEXT"
+  (l--transform-curry-calls (macroexpand-all form)))
+
+(defun l--make-syntax-reader ()
+  "Return a `load-read-function' implementing the l-syntax reader.
+Reads one top-level form from the input stream and applies
+`l--syntax-prepare-form'.  When the form is the symbol `@doc',
+reads the two following forms and groups them into
+`(@doc DOCSTRING NEXT-FORM)' before transforming, preserving the
+cross-form grouping that `l--group-doc-expressions' performs on a
+whole-file basis.  If end-of-file occurs while reading the lookahead
+pair, the bare `@doc' symbol is returned and the next reader call
+will surface the EOF naturally.
+
+since: NEXT"
+  (lambda (stream)
+    (let* ((form (read stream))
+           (grouped
+            (if (eq form '@doc)
+                (condition-case nil
+                    (let* ((docstring (read stream))
+                           (next-form (read stream)))
+                      `(@doc ,docstring ,next-form))
+                  (end-of-file form))
+              form)))
+      (l--syntax-prepare-form grouped))))
 
 (defun l--load-file-advice (orig-fun filename &rest args)
-  "Advice for `load' and `load-file' to handle l-syntax.
-Only processes .el files, .elc files are loaded normally.
-ORIG-FUN is the original load function.
-FILENAME is the file to load.
-ARGS are additional arguments passed to load.
+  "Around-advice for `load' / `load-file' enabling l-syntax processing.
+When FILENAME is an `.el' file that requests l-syntax (either via the
+global / let-bound `l-syntax' value or its prop-line), install a
+syntax-aware `load-read-function' and delegate to ORIG-FUN.  The
+standard `load' machinery handles `features-being-required',
+`load-history', `load-file-name', `after-load-functions', and the
+recursion guard unchanged.  ARGS are forwarded verbatim.
+
+The advice short-circuits when `l--syntax-loading' is already t, so a
+transitively-loaded file goes through its own decision rather than
+inheriting the outer call's reader.
 
 since: 0.2.0"
-  (if (l-syntax--load filename)
-      ;; Successfully loaded with l-syntax
-      t
-    ;; Not an .el file, doesn't exist, or l-syntax not enabled - use original function
-    (apply orig-fun filename args)))
+  (if (or l--syntax-loading
+          (not (l--file-wants-l-syntax-p filename)))
+      (apply orig-fun filename args)
+    (let ((l--syntax-loading t)
+          (load-read-function (l--make-syntax-reader)))
+      (apply orig-fun filename args))))
 
 (defun l--group-doc-in-content (content)
   "Group @doc expressions in CONTENT string.
