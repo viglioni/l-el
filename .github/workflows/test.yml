@@ -23,8 +23,6 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +37,7 @@ jobs:
           - os: ubuntu-latest
             emacs-version: 29.4
           - os: ubuntu-latest
-            emacs-version: 30.1
+            emacs-version: 30.2
           # macOS Intel - test 26.3+
           - os: macos-15-intel
             emacs-version: 26.3
@@ -50,24 +48,32 @@ jobs:
           - os: macos-15-intel
             emacs-version: 29.4
           - os: macos-15-intel
-            emacs-version: 30.1
+            emacs-version: 30.2
           # macOS ARM64 - only 28.1+ supported
           - os: macos-latest
             emacs-version: 28.2
           - os: macos-latest
             emacs-version: 29.4
           - os: macos-latest
-            emacs-version: 30.1
+            emacs-version: 30.2
+          # Emacs 31 snapshot - tracks the moving `emacs-31` branch snapshot
+          # from nix-emacs-ci; expected to be flaky as it follows upstream HEAD.
+          - os: ubuntu-latest
+            emacs-version: release-snapshot
+          - os: macos-15-intel
+            emacs-version: release-snapshot
+          - os: macos-latest
+            emacs-version: release-snapshot
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: purcell/setup-emacs@master
         with:
           version: ${{ matrix.emacs-version }}
 
       - name: Cache Cask packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cask
