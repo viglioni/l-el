@@ -76,8 +76,14 @@ since: 0.5.0"
 Most-specific-first.  Works for EIEIO classes (using C3 linearization
 via `eieio--class-precedence-list') and for cl-defstruct types (walking
 the single-inheritance chain through `:include').  Returns nil if
-CLASS-SYMBOL has no class metadata (built-in types like `integer'
-have no class object accessible via `cl-find-class').
+CLASS-SYMBOL has no class metaobject accessible via `cl-find-class'.
+
+Note: On Emacs >= 30 built-in types like `integer' do expose a
+metaobject and therefore return a real CPL (e.g.
+\(integer number number-or-marker atom t ...\)); on earlier Emacs
+versions the same call returns nil.  Dispatch is unaffected — class
+patterns are user types that are not in any built-in CPL, so
+`l--cpl-position-of' returns nil for them either way.
 
 since: NEXT"
   (let ((class (cl-find-class class-symbol)))

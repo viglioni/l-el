@@ -176,10 +176,7 @@
 
   (describe "l--class-cpl-names for unknown symbols"
     (test-it "returns nil for a symbol with no class metadata"
-      (expect (l--class-cpl-names 'no-such-class-at-all) :to-equal nil))
-    (test-it "returns nil for built-in types (no cl-find-class entry)"
-      ;; `integer' has no class metaobject in this Emacs.
-      (expect (l--class-cpl-names 'integer) :to-equal nil)))
+      (expect (l--class-cpl-names 'no-such-class-at-all) :to-equal nil)))
 
   (describe "l--cpl-position-of"
     (test-it "returns 0 for the value's own class"
