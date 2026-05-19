@@ -178,6 +178,24 @@
     (test-it "returns nil for a symbol with no class metadata"
       (expect (l--class-cpl-names 'no-such-class-at-all) :to-equal nil)))
 
+  (describe "l--class-cpl-names for built-in type names"
+    ;; Locks in the version-dependent observable contract.  On Emacs 30
+    ;; `cl-find-class' returns a `built-in-class' metaobject for type
+    ;; names like `integer'; that object inherits from the same
+    ;; `cl--class' parent struct that exposes `cl--class-parents', so it
+    ;; falls through the cl-defstruct branch of `l--class-cpl-names' and
+    ;; yields a real CPL.  On Emacs < 30 the same call returns nil
+    ;; because built-in types have no metaobject.
+    (test-it "Emacs >= 30 returns a CPL whose head is the type itself"
+      ;; Skipped on older Emacs where built-ins have no metaobject.
+      (when (>= emacs-major-version 30)
+        (let ((cpl (l--class-cpl-names 'integer)))
+          (expect cpl :to-be-truthy)
+          (expect (car cpl) :to-equal 'integer))))
+    (test-it "Emacs < 30 returns nil for built-in type names"
+      (when (< emacs-major-version 30)
+        (expect (l--class-cpl-names 'integer) :to-equal nil))))
+
   (describe "l--cpl-position-of"
     (test-it "returns 0 for the value's own class"
       (let ((a (make-instance 'cpl-fruit)))

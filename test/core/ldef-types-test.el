@@ -796,4 +796,33 @@
                   :to-equal 'is-sweet))
         (test-it "a plain dia-fruit instance still resolves to dia-fruit"
           (expect (dia-tie (make-instance 'dia-fruit))
-                  :to-equal 'is-fruit)))))
+                  :to-equal 'is-fruit))))
+
+    (describe "symbol-class vs keyword on built-in type names"
+      ;; Tie-breaking lock-in for the symbol-class-vs-keyword interaction
+      ;; on built-in types like `integer'.
+      ;;
+      ;; Two patterns can both match `42':
+      ;;   (x :integer)  — keyword form, tier 2 (primitive keyword)
+      ;;   (x integer)   — symbol-class form, tier 3 (cl-typep + CPL position)
+      ;;
+      ;; In `l-generic--pattern-spec-pair' the first KIND integer is what
+      ;; dominates the lexicographic comparison, so symbol-class (3) wins
+      ;; over keyword (2) regardless of definition order, on both Emacs <
+      ;; 30 (where the built-in CPL refinement collapses to 0) and Emacs
+      ;; >= 30 (where `integer' has a real CPL and the refinement is a
+      ;; real negative index).  This test locks that contract in so that
+      ;; any future change to tier ordering — or to how built-in type
+      ;; names are resolved at dispatch time — has to update the test
+      ;; deliberately.
+      (before-all
+        (ldef sc-vs-kw (x :integer) -> 'keyword)
+        (ldef sc-vs-kw (x integer)  -> 'symbol-class)
+        ;; Same two methods, reverse definition order.
+        (ldef sc-vs-kw-rev (x integer)  -> 'symbol-class)
+        (ldef sc-vs-kw-rev (x :integer) -> 'keyword))
+
+      (test-it "symbol-class `integer' beats keyword `:integer' for an int"
+        (expect (sc-vs-kw 42) :to-equal 'symbol-class))
+      (test-it "dispatch is independent of definition order"
+        (expect (sc-vs-kw-rev 42) :to-equal 'symbol-class))))
