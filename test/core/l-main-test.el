@@ -1086,6 +1086,25 @@
       (l-generic-remove-method 'test-remove-fn '((args :rest)))
 
       ;; Should only work with exactly 2 args now
-      (expect (test-remove-fn 3 4) :to-equal 12))))
+      (expect (test-remove-fn 3 4) :to-equal 12))
+
+    (test-it "value patterns survive macroexpand-all re-expansion"
+      ;; `with-l' calls `macroexpand-all' on each body form, which
+      ;; re-expands the embedded (ldef ...) form.  Each expansion
+      ;; calls `gensym' afresh, producing a different uninterned
+      ;; `l--match-NNN' symbol for the same literal value pattern.
+      ;; `l-generic--patterns-equal-p' normalizes those generated
+      ;; symbols away; this test pins that normalization down so a
+      ;; future change can't silently regress duplicate-method
+      ;; suppression and removal-by-literal-value.
+      (with-l (ldef test-remove-fn 0 -> 'zero-v1))
+      (with-l (ldef test-remove-fn 0 -> 'zero-v2))
+      (with-l (ldef test-remove-fn (n :integer) -> 'fallback))
+      ;; Re-definition replaces, doesn't accumulate.
+      (expect (test-remove-fn 0) :to-equal 'zero-v2)
+      (expect (test-remove-fn 7) :to-equal 'fallback)
+      ;; Removal by literal value pattern matches across the gensym.
+      (expect (l-generic-remove-method 'test-remove-fn '(0)) :to-be t)
+      (expect (test-remove-fn 0) :to-equal 'fallback))))
 
 ;;; l-test.el ends here
