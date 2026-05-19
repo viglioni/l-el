@@ -43,6 +43,15 @@ collapsed to a literal at macro-expansion time."
       (expect (l<> '(1 2 3) (lempty :list))
               :to-equal '(1 2 3)))
 
+    (test-it "satisfies semigroup associativity: (a <> b) <> c = a <> (b <> c)"
+      (dolist (triple '(((1)     (2)       (3))
+                        (nil     (4 5)     (6))
+                        ((1 2 3) (4 5 6)   (7 8))))
+        (pcase-let ((`(,a ,b ,c) triple))
+          (expect (l<> (l<> a b) c)
+                  :to-equal
+                  (l<> a (l<> b c))))))
+
     (test-it "lmappend concatenates all lists"
       (expect (lmappend '(1 2) '(3 4) '(5 6))
               :to-equal '(1 2 3 4 5 6))))
@@ -62,9 +71,46 @@ collapsed to a literal at macro-expansion time."
       (expect (l<> "hello" (lempty :string))
               :to-equal "hello"))
 
+    (test-it "satisfies semigroup associativity: (a <> b) <> c = a <> (b <> c)"
+      (dolist (triple '(("foo" "bar" "baz")
+                        (""    "x"   "yz")
+                        ("a "  "b "  "c")))
+        (pcase-let ((`(,a ,b ,c) triple))
+          (expect (l<> (l<> a b) c)
+                  :to-equal
+                  (l<> a (l<> b c))))))
+
     (test-it "lmappend concatenates all strings"
       (expect (lmappend "hello" " " "world" "!")
               :to-equal "hello world!")))
+
+  (describe "lmonoid with vectors"
+    (test-it "lempty returns empty vector"
+      (expect (lempty :vector) :to-equal []))
+
+    (test-it "lmonoid-p returns t for vectors"
+      (expect (lmonoid-p :vector) :to-be t))
+
+    (test-it "satisfies left identity: empty <> a = a"
+      (expect (l<> (lempty :vector) [1 2 3])
+              :to-equal [1 2 3]))
+
+    (test-it "satisfies right identity: a <> empty = a"
+      (expect (l<> [1 2 3] (lempty :vector))
+              :to-equal [1 2 3]))
+
+    (test-it "satisfies semigroup associativity: (a <> b) <> c = a <> (b <> c)"
+      (dolist (triple '(([1]     [2]       [3])
+                        ([]      [4 5]     [6])
+                        ([1 2 3] [4 5 6]   [7 8])))
+        (pcase-let ((`(,a ,b ,c) triple))
+          (expect (l<> (l<> a b) c)
+                  :to-equal
+                  (l<> a (l<> b c))))))
+
+    (test-it "lmappend concatenates all vectors"
+      (expect (lmappend [1 2] [3 4] [5 6])
+              :to-equal [1 2 3 4 5 6])))
 
   (describe "lempty default behavior"
     (test-it "returns error message for non-monoid types"

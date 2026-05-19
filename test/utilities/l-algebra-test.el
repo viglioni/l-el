@@ -34,10 +34,13 @@
       (expect (funcall (l<> "asd") "dsa") :to-equal "asddsa"))
 
     (test-it "satisfies associativity with strings"
-      (let ((a "foo") (b "bar") (c "baz"))
-        (expect (l<> (l<> a b) c)
-                :to-equal
-                (l<> a (l<> b c))))))
+      (dolist (triple '(("foo" "bar" "baz")
+                        (""    "x"   "yz")
+                        ("a "  "b "  "c")))
+        (pcase-let ((`(,a ,b ,c) triple))
+          (expect (l<> (l<> a b) c)
+                  :to-equal
+                  (l<> a (l<> b c)))))))
 
   (describe "lsemigroup with lists"
     (test-it "concatenates lists"
@@ -47,10 +50,32 @@
       (expect (lsemigroup-p :list) :to-be t))
 
     (test-it "satisfies associativity with lists"
-      (let ((a '(1)) (b '(2)) (c '(3)))
-        (expect (l<> (l<> a b) c)
-                :to-equal
-                (l<> a (l<> b c))))))
+      (dolist (triple '(((1)     (2)       (3))
+                        (nil     (4 5)     (6))
+                        ((1 2 3) (4 5 6)   (7 8))))
+        (pcase-let ((`(,a ,b ,c) triple))
+          (expect (l<> (l<> a b) c)
+                  :to-equal
+                  (l<> a (l<> b c)))))))
+
+  (describe "lsemigroup with vectors"
+    (test-it "concatenates vectors"
+      (expect (l<> [1 2] [3 4]) :to-equal [1 2 3 4]))
+
+    (test-it "lsemigroup-p returns t for vectors"
+      (expect (lsemigroup-p :vector) :to-be t))
+
+    (test-it "l<>-info returns the operator for :vector"
+      (expect (l<>-info :vector) :to-equal #'vconcat))
+
+    (test-it "satisfies associativity with vectors"
+      (dolist (triple '(([1]     [2]       [3])
+                        ([]      [4 5]     [6])
+                        ([1 2 3] [4 5 6]   [7 8])))
+        (pcase-let ((`(,a ,b ,c) triple))
+          (expect (l<> (l<> a b) c)
+                  :to-equal
+                  (l<> a (l<> b c)))))))
 
   (describe "l<>-info default behavior"
     (test-it "returns error message for non-semigroup types"
