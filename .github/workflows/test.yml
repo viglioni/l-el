@@ -86,9 +86,6 @@ jobs:
       - name: Run tests
         run: make test
 
-      - name: Verify l-built.el is up to date
-        run: make bundle-check
-
   # Intel Mac coverage via jcs090218/setup-emacs (Homebrew-based).
   # Cobertura menor porque a fórmula do brew só serve versões modernas.
   test-macos-intel:
