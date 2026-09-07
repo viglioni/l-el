@@ -21,6 +21,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Ubuntu + macOS ARM64 via purcell/setup-emacs (Nix-based).
+  # Nix's x86_64-darwin channel is EOL, so we can't run this on macos-15-intel;
+  # the `test-macos-intel' job covers Intel Mac via a Homebrew-based action.
   test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -38,17 +41,6 @@ jobs:
             emacs-version: 29.4
           - os: ubuntu-latest
             emacs-version: 30.2
-          # macOS Intel - test 26.3+
-          - os: macos-15-intel
-            emacs-version: 26.3
-          - os: macos-15-intel
-            emacs-version: 27.2
-          - os: macos-15-intel
-            emacs-version: 28.2
-          - os: macos-15-intel
-            emacs-version: 29.4
-          - os: macos-15-intel
-            emacs-version: 30.2
           # macOS ARM64 - only 28.1+ supported
           - os: macos-latest
             emacs-version: 28.2
@@ -60,8 +52,6 @@ jobs:
           # from nix-emacs-ci; expected to be flaky as it follows upstream HEAD.
           - os: ubuntu-latest
             emacs-version: release-snapshot
-          - os: macos-15-intel
-            emacs-version: release-snapshot
           - os: macos-latest
             emacs-version: release-snapshot
 
@@ -69,6 +59,49 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs-version }}
+
+      - name: Cache Cask packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cask
+            .cask
+          key: ${{ runner.os }}-cask-${{ matrix.emacs-version }}-${{ hashFiles('**/Cask') }}
+          restore-keys: |
+            ${{ runner.os }}-cask-${{ matrix.emacs-version }}-
+            ${{ runner.os }}-cask-
+
+      - name: Install Cask
+        run: |
+          if [ ! -d "$HOME/.cask" ]; then
+            curl -fsSL https://raw.githubusercontent.com/cask/cask/master/go | python
+          fi
+          echo "$HOME/.cask/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Run tests
+        run: make test
+
+      - name: Verify l-built.el is up to date
+        run: make bundle-check
+
+  # Intel Mac coverage via jcs090218/setup-emacs (Homebrew-based).
+  # Cobertura menor porque a fórmula do brew só serve versões modernas.
+  test-macos-intel:
+    runs-on: macos-15-intel
+    strategy:
+      fail-fast: false
+      matrix:
+        emacs-version: [29.4, 30.2]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: jcs090218/setup-emacs@master
         with:
           version: ${{ matrix.emacs-version }}
 
