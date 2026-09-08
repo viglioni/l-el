@@ -86,21 +86,24 @@ jobs:
       - name: Run tests
         run: make test
 
-  # Intel Mac coverage via jcs090218/setup-emacs (Homebrew-based).
-  # Cobertura menor porque a fórmula do brew só serve versões modernas.
+  # Intel Mac smoke test via Homebrew.
+  # Nix's x86_64-darwin channel is EOL, so purcell/setup-emacs (and any
+  # action wrapping it, e.g. jcs090218/setup-emacs) fails on
+  # `macos-15-intel'.  We install the stock brew Emacs formula, which
+  # covers a single (latest) version — enough to answer "does l-el
+  # still work on Intel?".  Version matrix on Intel would require
+  # switching to `d12frosted/emacs-plus' (build-from-source, slow).
   test-macos-intel:
     runs-on: macos-15-intel
-    strategy:
-      fail-fast: false
-      matrix:
-        emacs-version: [29.4, 30.2]
 
     steps:
       - uses: actions/checkout@v6
 
-      - uses: jcs090218/setup-emacs@master
-        with:
-          version: ${{ matrix.emacs-version }}
+      - name: Install Emacs (Homebrew)
+        run: |
+          brew update
+          brew install emacs
+          emacs --version
 
       - name: Cache Cask packages
         uses: actions/cache@v5
@@ -108,10 +111,9 @@ jobs:
           path: |
             ~/.cask
             .cask
-          key: ${{ runner.os }}-cask-${{ matrix.emacs-version }}-${{ hashFiles('**/Cask') }}
+          key: macos-intel-cask-${{ hashFiles('**/Cask') }}
           restore-keys: |
-            ${{ runner.os }}-cask-${{ matrix.emacs-version }}-
-            ${{ runner.os }}-cask-
+            macos-intel-cask-
 
       - name: Install Cask
         run: |
