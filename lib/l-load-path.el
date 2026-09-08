@@ -1,7 +1,7 @@
 ;;; l-load-path.el --- Load path setup for L library -*- lexical-binding: t; -*-
 
 ;; since: 0.3.0
-;; updated-at: ()
+;; updated-at: (1.2.0)
 
 ;;; Code:
 
@@ -34,7 +34,7 @@ since: 0.3.0"
   "Add DIR and all its descendant directories to `load-path'.
 Skips hidden entries (those starting with `.').
 
-since: NEXT"
+since: 1.2.0"
   (add-to-list 'load-path dir)
   (dolist (entry (directory-files dir t "^[^.]"))
     (when (file-directory-p entry)

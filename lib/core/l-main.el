@@ -6,7 +6,7 @@
 ;; Keywords: lisp, functional, programming, utilities
 ;; URL: https://github.com/viglioni/l-el
 ;; since: 0.2.0
-;; updated-at: (0.3.0 0.3.3 0.4.0 1.0.0 1.1.0)
+;; updated-at: (0.3.0 0.3.3 0.4.0 1.0.0 1.1.0 1.2.0)
 
 ;; This file is not part of GNU Emacs.
 
@@ -102,7 +102,7 @@ list literal, which would be evaluated as a function call.
 
 Used by `l' and `ldef' to parse arrow-syntax argument lists.
 
-since: NEXT"
+since: 1.2.0"
   (declare (indent defun))
   `(let* ((arrow-pos (or (cl-position '-> ,arrow-expr)
                          (signal 'l-invalid-syntax-error
@@ -299,7 +299,7 @@ Examples:
 
 Signals `l-invalid-syntax-error' if `->' is absent.
 
-since: NEXT"
+since: 1.2.0"
   (l--with-arrow expr
     `(lambda ,arrow-expr-args (interactive) ,@arrow-expr-body)))
 

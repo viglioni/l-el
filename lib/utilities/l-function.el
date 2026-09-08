@@ -6,7 +6,7 @@
 ;; Keywords: lisp, functional, programming, utilities
 ;; URL: https://github.com/viglioni/l-el
 ;; since: 0.5.0
-;; updated-at: (1.0.0 1.1.0)
+;; updated-at: (1.0.0 1.1.0 1.2.0)
 
 ;; This file is not part of GNU Emacs.
 

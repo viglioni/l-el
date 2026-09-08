@@ -6,7 +6,7 @@
 ;; Keywords: lisp, functional, programming, generics, pattern-matching
 ;; URL: https://github.com/viglioni/l-el
 ;; since: 0.2.0
-;; updated-at: (0.3.0 0.5.0 1.0.0 1.1.0 1.1.1)
+;; updated-at: (0.3.0 0.5.0 1.0.0 1.1.0 1.1.1 1.2.0)
 
 ;; This file is not part of GNU Emacs.
 
@@ -85,7 +85,7 @@ versions the same call returns nil.  Dispatch is unaffected — class
 patterns are user types that are not in any built-in CPL, so
 `l--cpl-position-of' returns nil for them either way.
 
-since: NEXT"
+since: 1.2.0"
   (let ((class (cl-find-class class-symbol)))
     (cond
      ((null class) nil)
@@ -102,7 +102,7 @@ since: NEXT"
   "Recursively walk CLASS and its `cl--class-parents' chain.
 Return a flat list of class name symbols, most-specific first.
 
-since: NEXT"
+since: 1.2.0"
   (when class
     (cons (cl--class-name class)
           (cl-mapcan #'l--struct-cpl-walk (cl--class-parents class)))))
@@ -117,7 +117,7 @@ class metadata or if CLASS-SYMBOL is not an ancestor.
 Used by `ldef' dispatch to resolve specificity between class-typed
 methods at runtime, including under multiple inheritance.
 
-since: NEXT"
+since: 1.2.0"
   (let ((cpl (l--class-cpl-names (type-of value))))
     (when cpl
       (cl-position class-symbol cpl))))
@@ -238,7 +238,7 @@ keyword argument.
 Used by typeclass predicates such as `lsemigroup-p' and `lfunctorp'
 to answer \"is this type an instance, transitively, via its parents?\"
 
-since: NEXT"
+since: 1.2.0"
   (when (keywordp type-keyword)
     (let ((parents (cdr (assq type-keyword l--type-hierarchy))))
       (cl-some (lambda (p)
@@ -258,7 +258,7 @@ from :number), and `:natural' is depth 2 (two steps from :number via
 :integer).  Used as a sub-rank within the primitive-keyword tier so
 deeper keywords win specificity ties against shallower ones.
 
-since: NEXT"
+since: 1.2.0"
   (let ((parents (cdr (assq keyword l--type-hierarchy))))
     (if (null parents)
         0

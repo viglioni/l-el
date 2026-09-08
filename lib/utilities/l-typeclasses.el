@@ -1,8 +1,8 @@
 ;;; l-typeclasses.el --- Typeclass system for l-el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
-;; since: NEXT
-;; updated-at: ()
+;; since: 1.2.0
+;; updated-at: (1.2.0)
 
 ;; This file is part of l-el.
 

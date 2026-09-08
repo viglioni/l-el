@@ -6,7 +6,7 @@
 ;; Keywords: lisp, functional, programming, generics, pattern-matching
 ;; URL: https://github.com/viglioni/l-el
 ;; since: 0.1.0
-;; updated-at: (0.3.0 0.4.0 0.5.0 1.0.0 1.1.0 1.1.1)
+;; updated-at: (0.3.0 0.4.0 0.5.0 1.0.0 1.1.0 1.1.1 1.2.0)
 
 ;; This file is not part of GNU Emacs.
 
@@ -346,7 +346,7 @@ refinement is the constant 0.
 Used by `l-generic--method-spec-expr' to build the per-method
 runtime specificity vector that drives `l-generic--spec-better-p'.
 
-since: NEXT"
+since: 1.2.0"
   (cl-destructuring-bind (param spec type-arg) (l-generic--parse-pattern pattern)
     (cond
      ;; Typed :rest
@@ -389,7 +389,7 @@ The vector is a flat list of integers — for each pattern position,
 two elements (KIND then REFINEMENT).  At dispatch time it is compared
 lexicographically by `l-generic--spec-better-p'.
 
-since: NEXT"
+since: 1.2.0"
   (let ((elems (cl-loop for pattern in pattern-list
                         for i from 0
                         append (l-generic--pattern-spec-pair pattern i))))
@@ -403,7 +403,7 @@ per pattern position.  Comparison is lexicographic, position by
 position, with higher values meaning more specific.  Nil B means \"no
 current best,\" so A is trivially better.
 
-since: NEXT"
+since: 1.2.0"
   (cond
    ((null b) t)
    (t (cl-loop for x in a
@@ -422,7 +422,7 @@ I is the method's index within the dispatch's `cl-case' at the end.
 The generated form references the lexical variables `args', `best-i',
 and `best-spec' which are introduced by the surrounding dispatch let.
 
-since: NEXT"
+since: 1.2.0"
   (let* ((pattern-list (l--pattern-list method))
          (conditions   (cl-loop for pattern in pattern-list
                                 for ai from 0
@@ -443,7 +443,7 @@ INDEXED-METHODS is a list of (INDEX . METHOD) pairs.  Each case binds
 the method's pattern parameters from `args' and evaluates its body.
 The `otherwise' clause raises a `pattern-match' error.
 
-since: NEXT"
+since: 1.2.0"
   `(cl-case best-i
      ,@(cl-loop
         for (i . method) in indexed-methods

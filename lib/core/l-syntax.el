@@ -6,7 +6,7 @@
 ;; Keywords: lisp, functional, programming, syntax, transformation
 ;; URL: https://github.com/viglioni/l-el
 ;; since: 0.2.0
-;; updated-at: (0.3.0)
+;; updated-at: (0.3.0 1.2.0)
 
 ;; This file is not part of GNU Emacs.
 
@@ -75,7 +75,7 @@ eval advices (`l--eval-last-sexp-advice', `l--eval-region-advice',
 `l--eval-buffer-advice') from re-applying the transformation when
 `load' calls them internally via `load-with-code-conversion'.
 
-since: NEXT")
+since: 1.2.0")
 
 (defcustom l-syntax nil
   "Controls whether l syntax transformations are applied during evaluation.
@@ -280,7 +280,7 @@ let-binds to t), then scans the first ~1 KB of FILENAME for a
 `-*- l-syntax: t -*-' prop-line.  End-of-file `;; Local Variables:'
 forms are not honoured at load time.
 
-since: NEXT"
+since: 1.2.0"
   (and (file-exists-p filename)
        (string-suffix-p ".el" filename)
        (or (and (boundp 'l-syntax) l-syntax)
@@ -295,7 +295,7 @@ The form is `macroexpand-all'-ed and then run through
 `l--transform-curry-calls', matching what `with-l' does per body
 form.
 
-since: NEXT"
+since: 1.2.0"
   (l--transform-curry-calls (macroexpand-all form)))
 
 (defun l--make-syntax-reader ()
@@ -309,7 +309,7 @@ whole-file basis.  If end-of-file occurs while reading the lookahead
 pair, the bare `@doc' symbol is returned and the next reader call
 will surface the EOF naturally.
 
-since: NEXT"
+since: 1.2.0"
   (lambda (stream)
     (let* ((form (read stream))
            (grouped

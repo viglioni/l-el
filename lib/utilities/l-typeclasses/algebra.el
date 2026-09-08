@@ -1,8 +1,8 @@
 ;;; algebra.el --- Algebraic structures (Semigroup, Monoid, etc.) -*- lexical-binding: t; l-syntax: t; -*-
 
 ;; Copyright (C) 2025
-;; since: NEXT
-;; updated-at: ()
+;; since: 1.2.0
+;; updated-at: (1.2.0)
 
 ;; This file is part of l-el.
 
@@ -27,19 +27,19 @@
 
 @doc "Check if a type/struct/class is an instance of `lsemigroup'.
 
-since: NEXT"
+since: 1.2.0"
 (ldef lsemigroup-p type-keyword
       -> (l--type-hierarchy-some type-keyword #'lsemigroup-p))
 
 @doc "Calculate the a <> b, where a and b are instances of `lsemigroup'.
 
-since: NEXT"
+since: 1.2.0"
 (ldef l<> any _   -> (format "%s is not an instance of SemiGroup" any))
 (ldef l<> _   any -> (format "%s is not an instance of SemiGroup" any))
 
 @doc "Return the binary operator backing the lsemigroup instance for TYPE.
 
-since: NEXT"
+since: 1.2.0"
 (ldef l<>-info any -> (format "%s is not an instance of SemiGroup" any))
 
 (cl-defmacro lsemigroup (name &key op)
@@ -70,7 +70,7 @@ Common semigroups:
   - Lists:    (lsemigroup :list :op #'append)
   - Vectors:  (lsemigroup :vector :op #'vconcat)
 
-since: NEXT"
+since: 1.2.0"
   `(progn
      ;; Operator
      (ldef l<> (a ,name) (b ,name) -> (if (functionp ,op)
@@ -87,18 +87,18 @@ since: NEXT"
 
 @doc "Check if a type/struct/class is an instance of `lmonoid'.
 
-since: NEXT"
+since: 1.2.0"
 (ldef lmonoid-p type-keyword
       -> (l--type-hierarchy-some type-keyword #'lmonoid-p))
 
 @doc "Return the identity element of the instance of `lmonoid'.
 
-since: NEXT"
+since: 1.2.0"
 (ldef lempty    any -> (format "%s is not an instance of Monoid" any))
 
 @doc "Calculate the binary operator `l<>' over several items instances of `lmonoid'.
 
-since: NEXT"
+since: 1.2.0"
 (ldef lmappend  any -> (format "%s is not an instance of Monoid" any))
 
 (cl-defmacro lmonoid (name &key id op concat-fn)
@@ -133,7 +133,7 @@ Common monoids:
   - Lists:    (lmonoid :list :id nil :op #'append)
   - Vectors:  (lmonoid :vector :id [] :op #'vconcat)
 
-since: NEXT"
+since: 1.2.0"
   `(progn
      (unless (lsemigroup-p ,name)
        (lsemigroup ,name :op ,op))
